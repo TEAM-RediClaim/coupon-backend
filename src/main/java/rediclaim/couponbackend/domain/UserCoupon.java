@@ -20,4 +20,13 @@ public class UserCoupon extends BaseEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     private Coupon coupon;
 
+    private UserCoupon(User user, Coupon coupon) {
+        this.user = user;
+        this.coupon = coupon;
+    }
+
+    public static UserCoupon create(User user, Coupon coupon) {
+        return new UserCoupon(user, coupon);
+    }
+
 }
