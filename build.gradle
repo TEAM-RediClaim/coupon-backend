@@ -2,6 +2,7 @@ plugins {
     id 'java'
     id 'org.springframework.boot' version '3.4.4'
     id 'io.spring.dependency-management' version '1.1.7'
+    id 'com.google.cloud.tools.jib' version '3.4.1'
 }
 
 group = 'rediclaim'
@@ -46,4 +47,18 @@ dependencies {
 
 tasks.named('test') {
     useJUnitPlatform()
+}
+
+jib {
+    from {
+        image = 'openjdk:17-jdk-slim'
+    }
+    to {
+        image = "rediclaim/coupon-backend:${version}"
+        tags = ['latest']
+    }
+    container {
+        jvmFlags = ['-Xms1024m', '-Xmx1024m']
+        ports = ['8080']
+    }
 }
