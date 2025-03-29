@@ -4,7 +4,7 @@ import java.util.List;
 
 public class UserCoupons {
 
-    private List<UserCoupon> userCoupons;
+    private final List<UserCoupon> userCoupons;
 
     private UserCoupons(List<UserCoupon> userCoupons) {
         this.userCoupons = userCoupons;
