@@ -2,12 +2,14 @@ package rediclaim.couponbackend.domain;
 
 import jakarta.persistence.*;
 import lombok.AccessLevel;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Entity
+@Table(name = "Coupons")
 public class Coupon extends BaseEntity {
 
     @Id
@@ -20,6 +22,13 @@ public class Coupon extends BaseEntity {
 
     @ManyToOne(fetch = FetchType.LAZY)
     private Admin couponCreator;
+
+    @Builder
+    private Coupon(String name, int remainingCount, Admin couponCreator) {
+        this.name = name;
+        this.remainingCount = remainingCount;
+        this.couponCreator = couponCreator;
+    }
 
     public boolean isSameCoupon(Long couponId) {
         return id.equals(couponId);
