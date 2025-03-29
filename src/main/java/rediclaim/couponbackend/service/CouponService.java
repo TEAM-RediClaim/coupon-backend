@@ -40,6 +40,9 @@ public class CouponService {
 
         coupon.decrementRemainingCount();
         User user = userRepository.findById(userId).orElseThrow(() -> new BadRequestException(USER_NOT_FOUND));
-        userCouponRepository.save(UserCoupon.create(user, coupon));
+        userCouponRepository.save(UserCoupon.builder()
+                .user(user)
+                .coupon(coupon)
+                .build());
     }
 }
