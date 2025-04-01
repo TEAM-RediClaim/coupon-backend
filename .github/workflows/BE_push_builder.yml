@@ -1,12 +1,11 @@
 name: Rediclaim Production Build & Push [BE]
 
 on:
-  pull_request:
+  push:
     branches: [ main ]
 
 jobs:
   build:
-    name: Build & Push Production Image
     runs-on: ubuntu-latest
 
     steps:
