@@ -54,7 +54,7 @@ jib {
         image = 'openjdk:17-jdk-slim'
     }
     to {
-        image = "rediclaim/coupon-backend:${version}"
+        image = "${System.getenv('DOCKER_HUB_USERNAME') ?: 'rediclaim'}/coupon-backend:${version}"
         tags = ['latest']
     }
     container {
