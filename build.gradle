@@ -60,5 +60,8 @@ jib {
     container {
         jvmFlags = ['-Xms1024m', '-Xmx1024m']
         ports = ['8080']
+        environment = [
+            'SPRING_PROFILES_ACTIVE': 'prod'
+        ]
     }
 }

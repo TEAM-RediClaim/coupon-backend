@@ -1,4 +1,4 @@
-name: Rediclaim PR Checker [BE]
+name: Rediclaim Production Build & Push [BE]
 
 on:
   pull_request:
@@ -6,7 +6,7 @@ on:
 
 jobs:
   build:
-
+    name: Build & Push Production Image
     runs-on: ubuntu-latest
 
     steps:
