@@ -3,6 +3,8 @@ package rediclaim.couponbackend.service;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import rediclaim.couponbackend.controller.response.ValidCoupons;
+import rediclaim.couponbackend.controller.response.ValidCouponInfo;
 import rediclaim.couponbackend.domain.Coupon;
 import rediclaim.couponbackend.domain.User;
 import rediclaim.couponbackend.domain.UserCoupon;
@@ -11,6 +13,8 @@ import rediclaim.couponbackend.exception.BadRequestException;
 import rediclaim.couponbackend.repository.CouponRepository;
 import rediclaim.couponbackend.repository.UserCouponRepository;
 import rediclaim.couponbackend.repository.UserRepository;
+
+import java.util.List;
 
 import static rediclaim.couponbackend.exception.ExceptionResponseStatus.*;
 
@@ -44,5 +48,15 @@ public class CouponService {
                 .user(user)
                 .coupon(coupon)
                 .build());
+    }
+
+    public ValidCoupons showAllValidCoupons() {
+        List<Coupon> coupons = couponRepository.findByRemainingCountGreaterThan(0);
+        List<ValidCouponInfo> list = coupons.stream()
+                .map(ValidCouponInfo::of)
+                .toList();
+        return ValidCoupons.builder()
+                .validCouponInfos(list)
+                .build();
     }
 }

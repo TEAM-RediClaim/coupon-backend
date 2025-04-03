@@ -1,11 +1,9 @@
 package rediclaim.couponbackend.controller;
 
 import lombok.RequiredArgsConstructor;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import rediclaim.couponbackend.controller.request.IssueCouponRequest;
+import rediclaim.couponbackend.controller.response.ValidCoupons;
 import rediclaim.couponbackend.global.common.BaseResponse;
 import rediclaim.couponbackend.service.CouponService;
 
@@ -19,5 +17,10 @@ public class CouponController {
     public BaseResponse<Void> issueCoupon(@RequestBody IssueCouponRequest request, @PathVariable Long couponId) {
         couponService.issueCoupon(request.getUserId(), couponId);
         return BaseResponse.ok(null);
+    }
+
+    @GetMapping("/api/coupons")
+    public BaseResponse<ValidCoupons> showAllValidCoupons() {
+        return BaseResponse.ok(couponService.showAllValidCoupons());
     }
 }
