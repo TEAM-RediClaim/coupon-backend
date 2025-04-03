@@ -23,4 +23,8 @@ public class User extends BaseEntity {
         this.id = id;
         this.name = name;
     }
+
+    public boolean isSameUser(Long userId) {
+        return id.equals(userId);
+    }
 }
