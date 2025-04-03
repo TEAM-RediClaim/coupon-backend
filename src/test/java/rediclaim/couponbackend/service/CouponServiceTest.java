@@ -16,8 +16,7 @@ import rediclaim.couponbackend.repository.UserCouponRepository;
 import rediclaim.couponbackend.repository.UserRepository;
 
 import static org.assertj.core.api.Assertions.*;
-import static rediclaim.couponbackend.exception.ExceptionResponseStatus.COUPON_OUT_OF_STOCK;
-import static rediclaim.couponbackend.exception.ExceptionResponseStatus.USER_ALREADY_HAS_COUPON;
+import static rediclaim.couponbackend.exception.ExceptionResponseStatus.*;
 
 @SpringBootTest
 @ActiveProfiles("test")
@@ -119,6 +118,51 @@ class CouponServiceTest {
                 );
     }
 
+    @Test
+    @DisplayName("유효한 관리자는 쿠폰을 생성할 수 있다.")
+    @Transactional
+    void create_coupon_success() throws Exception {
+        //given
+        Admin admin = adminRepository.save(createAdmin("관리자1"));
+
+        //when
+        Long savedId = couponService.createCoupon(admin.getId(), admin.getCode(), 10, "쿠폰1");
+
+        //then
+        Coupon savedCoupon = couponRepository.findById(savedId).get();
+        assertThat(savedCoupon.getId()).isNotNull();
+        assertThat(savedCoupon.getRemainingCount()).isEqualTo(10);
+        assertThat(savedCoupon.getName()).isEqualTo("쿠폰1");
+        assertThat(savedCoupon.getCouponCreator()).isEqualTo(admin);
+    }
+
+    @Test
+    @DisplayName("잘못된 관리자 id를 사용하면 쿠폰을 생성할 수 없다.")
+    @Transactional
+    void can_not_create_coupon_with_invalid_admin_id() throws Exception {
+        //given
+        Admin admin = adminRepository.save(createAdmin("관리자1"));
+
+        //when //then
+        assertThatThrownBy(() -> couponService.createCoupon(admin.getId() + 1, admin.getCode(), 10, "쿠폰1"))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessage(ADMIN_NOT_FOUND.getMessage());
+    }
+
+    @Test
+    @DisplayName("잘못된 관리자 code를 사용하면 쿠폰을 생성할 수 없다.")
+    @Transactional
+    void can_not_create_coupon_with_invalid_admin_code() throws Exception {
+        //given
+        Admin admin = adminRepository.save(createAdmin("관리자1"));
+
+        //when //then
+        assertThatThrownBy(() -> couponService.createCoupon(admin.getId(), admin.getCode() + 1, 10, "쿠폰1"))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessage(INVALID_ADMIN_CODE.getMessage());
+    }
+
+
     private User createUser(String name) {
         return User.builder()
                 .name(name)
@@ -128,6 +172,7 @@ class CouponServiceTest {
     private Admin createAdmin(String name) {
         return Admin.builder()
                 .name(name)
+                .code(1L)
                 .build();
     }
 
