@@ -18,8 +18,15 @@ public class Admin extends BaseEntity {
 
     private String name;
 
+    private Long code;
+
     @Builder
-    private Admin(String name) {
+    private Admin(String name, Long code) {
         this.name = name;
+        this.code = code;
+    }
+
+    public boolean isValidAdminCode(Long code) {
+        return this.code.equals(code);
     }
 }

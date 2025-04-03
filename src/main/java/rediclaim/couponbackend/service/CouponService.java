@@ -5,11 +5,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import rediclaim.couponbackend.controller.response.ValidCoupons;
 import rediclaim.couponbackend.controller.response.ValidCouponInfo;
-import rediclaim.couponbackend.domain.Coupon;
-import rediclaim.couponbackend.domain.User;
-import rediclaim.couponbackend.domain.UserCoupon;
-import rediclaim.couponbackend.domain.UserCoupons;
+import rediclaim.couponbackend.domain.*;
 import rediclaim.couponbackend.exception.BadRequestException;
+import rediclaim.couponbackend.repository.AdminRepository;
 import rediclaim.couponbackend.repository.CouponRepository;
 import rediclaim.couponbackend.repository.UserCouponRepository;
 import rediclaim.couponbackend.repository.UserRepository;
@@ -26,6 +24,7 @@ public class CouponService {
     private final UserCouponRepository userCouponRepository;
     private final CouponRepository couponRepository;
     private final UserRepository userRepository;
+    private final AdminRepository adminRepository;
 
     /**
      * 유저가 발급한 적이 없는 쿠폰이고, 재고가 있을 경우 해당 유저에게 쿠폰을 발급해준다
@@ -58,5 +57,19 @@ public class CouponService {
         return ValidCoupons.builder()
                 .validCouponInfos(list)
                 .build();
+    }
+
+    @Transactional
+    public Long createCoupon(Long adminId, Long adminCode, int quantity, String couponName) {
+        Admin admin = adminRepository.findById(adminId).orElseThrow(() -> new BadRequestException(ADMIN_NOT_FOUND));
+        if (!admin.isValidAdminCode(adminCode)) {
+            throw new BadRequestException(INVALID_ADMIN_CODE);
+        }
+
+        return couponRepository.save(Coupon.builder()
+                .name(couponName)
+                .remainingCount(quantity)
+                .couponCreator(admin)
+                .build()).getId();
     }
 }

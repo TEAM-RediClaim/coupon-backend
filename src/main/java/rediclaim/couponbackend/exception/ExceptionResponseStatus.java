@@ -22,7 +22,13 @@ public enum ExceptionResponseStatus {
     /**
      * 1200 : User 에러
      */
-    USER_NOT_FOUND(1200, HttpStatus.NOT_FOUND, "존재하지 않는 유저입니다.")
+    USER_NOT_FOUND(1200, HttpStatus.NOT_FOUND, "존재하지 않는 유저입니다."),
+
+    /**
+     * 1300 : Admin 에러
+     */
+    ADMIN_NOT_FOUND(1300, HttpStatus.NOT_FOUND, "존재하지 않는 관리자입니다."),
+    INVALID_ADMIN_CODE(1301, HttpStatus.BAD_REQUEST, "유효하지 않은 관리자 코드입니다.")
 
     ;
 
