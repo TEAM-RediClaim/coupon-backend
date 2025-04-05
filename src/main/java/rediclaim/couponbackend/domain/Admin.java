@@ -26,6 +26,22 @@ public class Admin extends BaseEntity {
         this.code = code;
     }
 
+    public static Admin createNew(String name) {
+        Long code = createUniqueCode();
+        return Admin.builder()
+                .name(name)
+                .code(code)
+                .build();
+    }
+
+    /**
+     * 해당 메서드 호출되는 시각(밀리초 단위)으로 adminCode 부여
+     * -> 트래픽 많아질 경우 중복된 code 생성될 수 있음
+     */
+    private static Long createUniqueCode() {
+        return System.currentTimeMillis();
+    }
+
     public boolean isValidAdminCode(Long code) {
         return this.code.equals(code);
     }
