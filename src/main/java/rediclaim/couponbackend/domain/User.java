@@ -19,8 +19,11 @@ public class User extends BaseEntity {
     private String name;
 
     @Builder
-    private User(Long id, String name) {
-        this.id = id;
+    private User(String name) {
         this.name = name;
+    }
+
+    public boolean isSameUser(Long userId) {
+        return id.equals(userId);
     }
 }
