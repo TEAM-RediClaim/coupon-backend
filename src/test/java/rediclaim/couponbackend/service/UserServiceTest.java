@@ -78,6 +78,23 @@ class UserServiceTest {
                 );
     }
 
+    @Test
+    @DisplayName("유저를 등록하고, 등록된 유저의 id를 반환한다.")
+    @Transactional
+    void register_user() throws Exception {
+        //given
+        String name = "유저1";
+
+        //when
+        Long savedUserId = userService.registerUser(name);
+
+        //then
+        User user = userRepository.findById(savedUserId).orElse(null);
+        assertThat(user).isNotNull();
+        assertThat(user.getId()).isEqualTo(savedUserId);
+        assertThat(user.getName()).isEqualTo(name);
+    }
+
     private UserCoupon createUserCoupon(User user, Coupon coupon) {
         return UserCoupon.builder()
                 .user(user)
