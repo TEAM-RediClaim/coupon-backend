@@ -8,6 +8,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
 import rediclaim.couponbackend.controller.response.IssuedCoupons;
+import rediclaim.couponbackend.controller.response.RegisterAdminResponse;
 import rediclaim.couponbackend.domain.Admin;
 import rediclaim.couponbackend.domain.Coupon;
 import rediclaim.couponbackend.domain.User;
@@ -93,6 +94,23 @@ class UserServiceTest {
         assertThat(user).isNotNull();
         assertThat(user.getId()).isEqualTo(savedUserId);
         assertThat(user.getName()).isEqualTo(name);
+    }
+
+    @Test
+    @DisplayName("관리자를 등록하고, 등록된 관리자의 [id, 관리자 code]를 반환한다.")
+    void register_admin() throws Exception {
+        //given
+        String name = "관리자1";
+
+        //when
+        RegisterAdminResponse response = userService.registerAdmin(name);
+
+        //then
+        Admin admin = adminRepository.findById(response.getAdminId()).orElse(null);
+        assertThat(admin).isNotNull();
+        assertThat(admin.getId()).isEqualTo(response.getAdminId());
+        assertThat(admin.getName()).isEqualTo(name);
+        assertThat(admin.getCode()).isEqualTo(response.getAdminCode());
     }
 
     private UserCoupon createUserCoupon(User user, Coupon coupon) {
