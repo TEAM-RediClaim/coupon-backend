@@ -5,7 +5,7 @@ import org.springframework.web.bind.annotation.*;
 import rediclaim.couponbackend.controller.request.CreateCouponRequest;
 import rediclaim.couponbackend.controller.request.IssueCouponRequest;
 import rediclaim.couponbackend.controller.response.CreateCouponResponse;
-import rediclaim.couponbackend.controller.response.ValidCoupons;
+import rediclaim.couponbackend.controller.response.ValidCouponsResponse;
 import rediclaim.couponbackend.global.common.BaseResponse;
 import rediclaim.couponbackend.service.CouponService;
 
@@ -22,7 +22,7 @@ public class CouponController {
     }
 
     @GetMapping("/api/coupons")
-    public BaseResponse<ValidCoupons> showAllValidCoupons() {
+    public BaseResponse<ValidCouponsResponse> showAllValidCoupons() {
         return BaseResponse.ok(couponService.showAllValidCoupons());
     }
 

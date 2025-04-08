@@ -7,7 +7,7 @@ import java.util.List;
 
 @Builder
 @Getter
-public class IssuedCoupons {
+public class IssuedCouponsResponse {
 
-    private List<IssuedCouponInfo> issuedCouponInfos;
+    private List<IssuedCoupon> issuedCoupons;
 }

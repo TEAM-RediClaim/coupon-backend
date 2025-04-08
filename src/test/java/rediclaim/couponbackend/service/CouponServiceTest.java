@@ -7,7 +7,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
-import rediclaim.couponbackend.controller.response.ValidCoupons;
+import rediclaim.couponbackend.controller.response.ValidCouponsResponse;
 import rediclaim.couponbackend.domain.*;
 import rediclaim.couponbackend.exception.BadRequestException;
 import rediclaim.couponbackend.repository.AdminRepository;
@@ -107,10 +107,10 @@ class CouponServiceTest {
         Coupon coupon3 = couponRepository.save(createCoupon("쿠폰3", 0, admin));
 
         //when
-        ValidCoupons result = couponService.showAllValidCoupons();
+        ValidCouponsResponse result = couponService.showAllValidCoupons();
 
         //then
-        assertThat(result.getValidCouponInfos()).hasSize(2)
+        assertThat(result.getValidCoupons()).hasSize(2)
                 .extracting("couponId", "remainingCount")
                 .containsExactlyInAnyOrder(
                         tuple(coupon1.getId(), 5),

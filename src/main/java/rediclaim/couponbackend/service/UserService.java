@@ -3,8 +3,8 @@ package rediclaim.couponbackend.service;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import rediclaim.couponbackend.controller.response.IssuedCouponInfo;
-import rediclaim.couponbackend.controller.response.IssuedCoupons;
+import rediclaim.couponbackend.controller.response.IssuedCoupon;
+import rediclaim.couponbackend.controller.response.IssuedCouponsResponse;
 import rediclaim.couponbackend.controller.response.RegisterAdminResponse;
 import rediclaim.couponbackend.domain.Admin;
 import rediclaim.couponbackend.domain.Coupon;
@@ -25,15 +25,15 @@ public class UserService {
     private final UserRepository userRepository;
     private final AdminRepository adminRepository;
 
-    public IssuedCoupons showAllIssuedCoupons(Long userId) {
+    public IssuedCouponsResponse showAllIssuedCoupons(Long userId) {
         UserCoupons userCoupons = UserCoupons.of(userCouponRepository.findByUserId(userId));
         List<Coupon> coupons = userCoupons.getCoupons();
-        List<IssuedCouponInfo> list = coupons.stream()
-                .map(IssuedCouponInfo::of)
+        List<IssuedCoupon> list = coupons.stream()
+                .map(IssuedCoupon::of)
                 .toList();
 
-        return IssuedCoupons.builder()
-                .issuedCouponInfos(list)
+        return IssuedCouponsResponse.builder()
+                .issuedCoupons(list)
                 .build();
     }
 

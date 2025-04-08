@@ -5,20 +5,20 @@ import lombok.Getter;
 import rediclaim.couponbackend.domain.Coupon;
 
 @Getter
-public class ValidCouponInfo {
+public class ValidCoupon {
 
     private Long couponId;
 
     private int remainingCount;
 
     @Builder
-    private ValidCouponInfo(Long couponId, int remainingCount) {
+    private ValidCoupon(Long couponId, int remainingCount) {
         this.couponId = couponId;
         this.remainingCount = remainingCount;
     }
 
-    public static ValidCouponInfo of(Coupon coupon) {
-        return ValidCouponInfo.builder()
+    public static ValidCoupon of(Coupon coupon) {
+        return ValidCoupon.builder()
                 .couponId(coupon.getId())
                 .remainingCount(coupon.getRemainingCount())
                 .build();

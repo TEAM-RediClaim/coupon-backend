@@ -7,7 +7,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
-import rediclaim.couponbackend.controller.response.IssuedCoupons;
+import rediclaim.couponbackend.controller.response.IssuedCouponsResponse;
 import rediclaim.couponbackend.controller.response.RegisterAdminResponse;
 import rediclaim.couponbackend.domain.Admin;
 import rediclaim.couponbackend.domain.Coupon;
@@ -68,10 +68,10 @@ class UserServiceTest {
         userCouponRepository.save(createUserCoupon(user2, coupon4));
 
         //when
-        IssuedCoupons issuedCoupons = userService.showAllIssuedCoupons(user1.getId());      // user1이 발급한 쿠폰 조회
+        IssuedCouponsResponse issuedCoupons = userService.showAllIssuedCoupons(user1.getId());      // user1이 발급한 쿠폰 조회
 
         //then
-        assertThat(issuedCoupons.getIssuedCouponInfos()).hasSize(2)
+        assertThat(issuedCoupons.getIssuedCoupons()).hasSize(2)
                 .extracting("couponId", "couponName")
                 .containsExactlyInAnyOrder(
                         tuple(coupon1.getId(), coupon1.getName()),

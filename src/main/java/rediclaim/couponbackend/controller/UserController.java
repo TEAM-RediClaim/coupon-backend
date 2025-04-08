@@ -4,7 +4,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 import rediclaim.couponbackend.controller.request.RegisterAdminRequest;
 import rediclaim.couponbackend.controller.request.RegisterUserRequest;
-import rediclaim.couponbackend.controller.response.IssuedCoupons;
+import rediclaim.couponbackend.controller.response.IssuedCouponsResponse;
 import rediclaim.couponbackend.controller.response.RegisterAdminResponse;
 import rediclaim.couponbackend.controller.response.RegisterUserResponse;
 import rediclaim.couponbackend.global.common.BaseResponse;
@@ -17,7 +17,7 @@ public class UserController {
     private final UserService userService;
 
     @GetMapping("/api/users/{userId}/coupons")
-    public BaseResponse<IssuedCoupons> showAllIssuedCoupons(@PathVariable Long userId) {
+    public BaseResponse<IssuedCouponsResponse> showAllIssuedCoupons(@PathVariable Long userId) {
         return BaseResponse.ok(userService.showAllIssuedCoupons(userId));
     }
 
