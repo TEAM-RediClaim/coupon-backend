@@ -28,7 +28,7 @@ public class CouponController {
 
     @PostMapping("/api/coupons")
     public BaseResponse<CreateCouponResponse> createCoupon(@RequestBody CreateCouponRequest request) {
-        Long couponId = couponService.createCoupon(request.getAdminId(), request.getAdminCode(), request.getQuantity(), request.getCouponName());
+        Long couponId = couponService.createCoupon(request.getCreatorId(), request.getQuantity(), request.getCouponName());
         return BaseResponse.ok(CreateCouponResponse.builder()
                         .couponId(couponId)
                         .build());

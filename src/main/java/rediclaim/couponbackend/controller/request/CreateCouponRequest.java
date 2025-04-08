@@ -7,11 +7,9 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class CreateCouponRequest {
 
-    private Long adminId;
+    private Long creatorId;
 
-    private Long adminCode;
+    private String couponName;
 
-    private String couponName;      // 발급할 쿠폰의 이름
-
-    private int quantity;       // 발급할 쿠폰의 수량
+    private int quantity;
 }

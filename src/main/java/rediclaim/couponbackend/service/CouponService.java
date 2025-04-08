@@ -7,7 +7,6 @@ import rediclaim.couponbackend.controller.response.ValidCouponsResponse;
 import rediclaim.couponbackend.controller.response.ValidCoupon;
 import rediclaim.couponbackend.domain.*;
 import rediclaim.couponbackend.exception.BadRequestException;
-import rediclaim.couponbackend.repository.AdminRepository;
 import rediclaim.couponbackend.repository.CouponRepository;
 import rediclaim.couponbackend.repository.UserCouponRepository;
 import rediclaim.couponbackend.repository.UserRepository;
@@ -24,7 +23,6 @@ public class CouponService {
     private final UserCouponRepository userCouponRepository;
     private final CouponRepository couponRepository;
     private final UserRepository userRepository;
-    private final AdminRepository adminRepository;
 
     /**
      * 유저가 발급한 적이 없는 쿠폰이고, 재고가 있을 경우 해당 유저에게 쿠폰을 발급해준다
@@ -60,16 +58,16 @@ public class CouponService {
     }
 
     @Transactional
-    public Long createCoupon(Long adminId, Long adminCode, int quantity, String couponName) {
-        Admin admin = adminRepository.findById(adminId).orElseThrow(() -> new BadRequestException(ADMIN_NOT_FOUND));
-        if (!admin.isValidAdminCode(adminCode)) {
-            throw new BadRequestException(INVALID_ADMIN_CODE);
+    public Long createCoupon(Long creatorId, int quantity, String couponName) {
+        User creator = userRepository.findById(creatorId).orElseThrow(() -> new BadRequestException(USER_NOT_FOUND));
+        if (!creator.isCreator()) {
+            throw new BadRequestException(USER_NOT_ALLOWED_TO_CREATE_COUPON);
         }
 
         return couponRepository.save(Coupon.builder()
                 .name(couponName)
                 .remainingCount(quantity)
-                .couponCreator(admin)
+                .creator(creator)
                 .build()).getId();
     }
 }
