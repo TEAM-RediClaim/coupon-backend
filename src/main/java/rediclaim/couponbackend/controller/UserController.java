@@ -2,10 +2,10 @@ package rediclaim.couponbackend.controller;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
-import rediclaim.couponbackend.controller.request.RegisterAdminRequest;
+import rediclaim.couponbackend.controller.request.RegisterCreatorRequest;
 import rediclaim.couponbackend.controller.request.RegisterUserRequest;
 import rediclaim.couponbackend.controller.response.IssuedCouponsResponse;
-import rediclaim.couponbackend.controller.response.RegisterAdminResponse;
+import rediclaim.couponbackend.controller.response.RegisterCreatorResponse;
 import rediclaim.couponbackend.controller.response.RegisterUserResponse;
 import rediclaim.couponbackend.global.common.BaseResponse;
 import rediclaim.couponbackend.service.UserService;
@@ -29,9 +29,12 @@ public class UserController {
                 .build());
     }
 
-    @PostMapping("/api/admins")
-    public BaseResponse<RegisterAdminResponse> registerAdmin(@RequestBody RegisterAdminRequest request) {
-        return BaseResponse.ok(userService.registerAdmin(request.getName()));
+    @PostMapping("/api/creators")
+    public BaseResponse<RegisterCreatorResponse> registerCreator(@RequestBody RegisterCreatorRequest request) {
+        Long creatorId = userService.registerCreator(request.getName());
+        return BaseResponse.ok(RegisterCreatorResponse.builder()
+                .creatorId(creatorId)
+                .build());
     }
 
 }

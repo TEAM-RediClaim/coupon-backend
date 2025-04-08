@@ -5,7 +5,7 @@ import lombok.NoArgsConstructor;
 
 @Getter
 @NoArgsConstructor
-public class RegisterAdminRequest {
+public class RegisterCreatorRequest {
 
     private String name;
 }
