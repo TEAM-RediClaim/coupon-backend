@@ -21,13 +21,13 @@ public class Coupon extends BaseEntity {
     private int remainingCount;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    private Admin couponCreator;
+    private User creator;
 
     @Builder
-    private Coupon(String name, int remainingCount, Admin couponCreator) {
+    private Coupon(String name, int remainingCount, User creator) {
         this.name = name;
         this.remainingCount = remainingCount;
-        this.couponCreator = couponCreator;
+        this.creator = creator;
     }
 
     public boolean isSameCoupon(Long couponId) {
