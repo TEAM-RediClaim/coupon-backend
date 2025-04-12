@@ -3,14 +3,15 @@ package rediclaim.couponbackend.service;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import rediclaim.couponbackend.domain.Coupon;
-import rediclaim.couponbackend.domain.User;
-import rediclaim.couponbackend.domain.UserCoupon;
-import rediclaim.couponbackend.domain.UserCoupons;
+import rediclaim.couponbackend.controller.response.ValidCouponsResponse;
+import rediclaim.couponbackend.controller.response.ValidCoupon;
+import rediclaim.couponbackend.domain.*;
 import rediclaim.couponbackend.exception.BadRequestException;
 import rediclaim.couponbackend.repository.CouponRepository;
 import rediclaim.couponbackend.repository.UserCouponRepository;
 import rediclaim.couponbackend.repository.UserRepository;
+
+import java.util.List;
 
 import static rediclaim.couponbackend.exception.ExceptionResponseStatus.*;
 
@@ -44,5 +45,29 @@ public class CouponService {
                 .user(user)
                 .coupon(coupon)
                 .build());
+    }
+
+    public ValidCouponsResponse showAllValidCoupons() {
+        List<Coupon> coupons = couponRepository.findByRemainingCountGreaterThan(0);
+        List<ValidCoupon> list = coupons.stream()
+                .map(ValidCoupon::of)
+                .toList();
+        return ValidCouponsResponse.builder()
+                .validCoupons(list)
+                .build();
+    }
+
+    @Transactional
+    public Long createCoupon(Long creatorId, int quantity, String couponName) {
+        User creator = userRepository.findById(creatorId).orElseThrow(() -> new BadRequestException(USER_NOT_FOUND));
+        if (!creator.isCreator()) {
+            throw new BadRequestException(USER_NOT_ALLOWED_TO_CREATE_COUPON);
+        }
+
+        return couponRepository.save(Coupon.builder()
+                .name(couponName)
+                .remainingCount(quantity)
+                .creator(creator)
+                .build()).getId();
     }
 }

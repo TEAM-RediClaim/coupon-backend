@@ -6,6 +6,8 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+import static rediclaim.couponbackend.domain.UserType.CREATOR;
+
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Entity
@@ -16,11 +18,24 @@ public class User extends BaseEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(nullable = false)
     private String name;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private UserType userType;
+
     @Builder
-    private User(Long id, String name) {
-        this.id = id;
+    private User(String name, UserType userType) {
         this.name = name;
+        this.userType = userType;
+    }
+
+    public boolean isSameUser(Long userId) {
+        return id.equals(userId);
+    }
+
+    public boolean isCreator() {
+        return userType == CREATOR;
     }
 }

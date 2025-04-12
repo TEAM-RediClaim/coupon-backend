@@ -22,8 +22,8 @@ public enum ExceptionResponseStatus {
     /**
      * 1200 : User 에러
      */
-    USER_NOT_FOUND(1200, HttpStatus.NOT_FOUND, "존재하지 않는 유저입니다.")
-
+    USER_NOT_FOUND(1200, HttpStatus.NOT_FOUND, "존재하지 않는 유저입니다."),
+    USER_NOT_ALLOWED_TO_CREATE_COUPON(1201, HttpStatus.BAD_REQUEST, "일반 유저는 쿠폰을 생성할 수 없습니다.")
     ;
 
     private final int code;

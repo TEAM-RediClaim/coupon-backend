@@ -16,18 +16,20 @@ public class Coupon extends BaseEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(nullable = false)
     private String name;
 
+    @Column(nullable = false)
     private int remainingCount;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    private Admin couponCreator;
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    private User creator;
 
     @Builder
-    private Coupon(String name, int remainingCount, Admin couponCreator) {
+    private Coupon(String name, int remainingCount, User creator) {
         this.name = name;
         this.remainingCount = remainingCount;
-        this.couponCreator = couponCreator;
+        this.creator = creator;
     }
 
     public boolean isSameCoupon(Long couponId) {

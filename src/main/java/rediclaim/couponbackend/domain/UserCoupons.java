@@ -1,5 +1,6 @@
 package rediclaim.couponbackend.domain;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public class UserCoupons {
@@ -16,5 +17,11 @@ public class UserCoupons {
 
     public boolean hasCoupon(Long couponId) {
         return userCoupons.stream().anyMatch(userCoupon -> userCoupon.getCoupon().isSameCoupon(couponId));
+    }
+
+    public List<Coupon> getCoupons() {
+        return userCoupons.stream()
+                .map(UserCoupon::getCoupon)
+                .toList();
     }
 }
