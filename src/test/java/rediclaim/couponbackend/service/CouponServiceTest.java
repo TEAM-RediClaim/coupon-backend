@@ -159,7 +159,6 @@ class CouponServiceTest {
                 .hasMessage(USER_NOT_ALLOWED_TO_CREATE_COUPON.getMessage());
     }
 
-
     private User createUser(String name) {
         return User.builder()
                 .name(name)
