@@ -1,6 +1,10 @@
 package rediclaim.couponbackend.service;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.PessimisticLockingFailureException;
+import org.springframework.retry.annotation.Backoff;
+import org.springframework.retry.annotation.Recover;
+import org.springframework.retry.annotation.Retryable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import rediclaim.couponbackend.controller.response.ValidCouponsResponse;
@@ -27,6 +31,10 @@ public class CouponService {
     /**
      * 유저가 발급한 적이 없는 쿠폰이고, 재고가 있을 경우 해당 유저에게 쿠폰을 발급해준다
      */
+    @Retryable(
+            maxAttempts = 3,
+            backoff = @Backoff(delay = 1000)
+    )
     @Transactional
     public void issueCoupon(Long userId, Long couponId) {
         UserCoupons userCoupons = UserCoupons.of(userCouponRepository.findByUserId(userId));
@@ -34,7 +42,7 @@ public class CouponService {
             throw new BadRequestException(USER_ALREADY_HAS_COUPON);
         }
 
-        Coupon coupon = couponRepository.findById(couponId).orElseThrow(() -> new BadRequestException(COUPON_NOT_FOUND));
+        Coupon coupon = couponRepository.findByIdForUpdate(couponId).orElseThrow(() -> new BadRequestException(COUPON_NOT_FOUND));
         if (!coupon.hasRemainingStock()) {
             throw new BadRequestException(COUPON_OUT_OF_STOCK);
         }
@@ -45,6 +53,11 @@ public class CouponService {
                 .user(user)
                 .coupon(coupon)
                 .build());
+    }
+
+    @Recover
+    public void recoverLockTimeout(PessimisticLockingFailureException exception, Long userId, Long couponId) {
+        throw new BadRequestException(COUPON_LOCK_TIMEOUT);
     }
 
     public ValidCouponsResponse showAllValidCoupons() {
