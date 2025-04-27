@@ -32,6 +32,8 @@ public class CouponService {
      * 유저가 발급한 적이 없는 쿠폰이고, 재고가 있을 경우 해당 유저에게 쿠폰을 발급해준다
      */
     @Retryable(
+            retryFor = PessimisticLockingFailureException.class,
+            notRecoverable = BadRequestException.class,
             maxAttempts = 3,
             backoff = @Backoff(delay = 1000)
     )
