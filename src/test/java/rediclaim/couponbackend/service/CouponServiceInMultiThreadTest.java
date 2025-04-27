@@ -6,6 +6,9 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
+import org.springframework.transaction.support.TransactionTemplate;
 import rediclaim.couponbackend.domain.Coupon;
 import rediclaim.couponbackend.domain.User;
 import rediclaim.couponbackend.repository.CouponRepository;
@@ -14,13 +17,11 @@ import rediclaim.couponbackend.repository.UserRepository;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.Map;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
-
-import static org.junit.jupiter.api.Assertions.assertAll;
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.*;
 import static rediclaim.couponbackend.domain.UserType.*;
 
 @SpringBootTest
@@ -38,6 +39,9 @@ class CouponServiceInMultiThreadTest {
 
     @Autowired
     private UserRepository userRepository;
+
+    @Autowired
+    private PlatformTransactionManager transactionManager;
 
     @AfterEach
     void tearDown() {
@@ -95,6 +99,76 @@ class CouponServiceInMultiThreadTest {
                 () -> assertEquals(900, failCount.get(), "실패 요청수는 900이어야 합니다."),
                 () -> assertEquals(0, updatedCoupon.getRemainingCount(), "남은 쿠폰 재고는 0이어야 합니다.")
         );
+    }
+
+    @Test
+    @DisplayName("멀티 스레드 환경에서 쿠폰 발급 요청이 동시에 들어올 경우, 쿠폰은 선착순으로 발급되어야 한다.")
+    void should_issue_coupon_in_FIFO_policy() throws Exception {
+        //given
+        User creator = userRepository.save(createCreator("쿠폰생성자1"));
+        Coupon coupon = couponRepository.save(createCoupon("쿠폰1", 2, creator));
+        List<User> users = new ArrayList<>();       // 10명의 테스트 유저
+        for (int i = 1; i <= 10; i++) {
+            users.add(userRepository.save(createUser("유저" + i)));
+        }
+        User firstUser = users.get(0);
+        
+        for (User user : users) {
+            System.out.println("user.getId() = " + user.getId());       // 2 ~ 11
+        }
+
+        Map<User, Semaphore> semaphoreMap = new ConcurrentHashMap<>();
+        CountDownLatch readyLatch = new CountDownLatch(users.size());
+        CountDownLatch doneLatch = new CountDownLatch(users.size());
+        CountDownLatch lockAcquired = new CountDownLatch(1);
+        Map<User, Integer> issueOrder = new ConcurrentHashMap<>();
+        AtomicInteger issueCount = new AtomicInteger();
+
+        //when
+        // user1 ~ user10 순서로 스레드 생성
+        for (User user : users) {
+            semaphoreMap.put(user, new Semaphore(0));
+            new Thread(() -> {
+                readyLatch.countDown();
+                try {
+                    semaphoreMap.get(user).acquire();
+
+                    if (user.equals(firstUser)) {
+                        TransactionTemplate tt = new TransactionTemplate(transactionManager);
+                        tt.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+                        tt.execute(status -> {
+                            couponRepository.findByIdForUpdate(coupon.getId()).orElseThrow();
+                            lockAcquired.countDown();
+                            try {
+                                Thread.sleep(3001);         // user1은 3000ms 보다 긴 시간동안 락 점유
+                            } catch (InterruptedException e) {
+                            }
+                            return null;
+                        });
+                    }
+
+                    couponService.issueCoupon(user.getId(), coupon.getId());
+                    issueOrder.put(user, issueCount.getAndIncrement());
+                } catch (InterruptedException e) {
+                } finally {
+                    doneLatch.countDown();
+                }
+            }).start();
+        }
+
+        for (User user : users) {
+            semaphoreMap.get(user).release();       // user1 ~ user10 순서로 스레드 시작
+            Thread.sleep(50);
+        }
+
+        //then
+        assertTrue(doneLatch.await(20, TimeUnit.SECONDS));      // 모든 스레드 종료 대기
+
+        assertThat(issueOrder.size()).isEqualTo(2);
+        for (User user : issueOrder.keySet()) {
+            System.out.println("user.getId() = " + user.getId());
+            System.out.println("issueOrder.get(user) = " + issueOrder.get(user));
+        }
     }
 
     private User createUser(String name) {
