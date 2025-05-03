@@ -8,7 +8,7 @@ import rediclaim.couponbackend.controller.request.CreateCouponRequest;
 import rediclaim.couponbackend.controller.request.IssueCouponRequest;
 import rediclaim.couponbackend.controller.response.CreateCouponResponse;
 import rediclaim.couponbackend.controller.response.ValidCouponsResponse;
-import rediclaim.couponbackend.exception.BadRequestException;
+import rediclaim.couponbackend.exception.CustomException;
 import rediclaim.couponbackend.global.common.BaseResponse;
 import rediclaim.couponbackend.service.CouponService;
 
@@ -23,7 +23,7 @@ public class CouponController {
     @PostMapping("/api/coupons/{couponId}")
     public BaseResponse<Void> issueCoupon(@Valid @RequestBody IssueCouponRequest request, @PathVariable Long couponId, BindingResult bindingResult) {
         if (bindingResult.hasErrors()) {
-            throw new BadRequestException(getErrorMessage(bindingResult));
+            throw new CustomException(getErrorMessage(bindingResult));
         }
 
         couponService.issueCoupon(request.getUserId(), couponId);
@@ -38,7 +38,7 @@ public class CouponController {
     @PostMapping("/api/coupons")
     public BaseResponse<CreateCouponResponse> createCoupon(@Valid @RequestBody CreateCouponRequest request, BindingResult bindingResult) {
         if (bindingResult.hasErrors()) {
-            throw new BadRequestException(getErrorMessage(bindingResult));
+            throw new CustomException(getErrorMessage(bindingResult));
         }
 
         Long couponId = couponService.createCoupon(request.getCreatorId(), request.getQuantity(), request.getCouponName());

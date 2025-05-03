@@ -10,7 +10,7 @@ import org.springframework.transaction.annotation.Transactional;
 import rediclaim.couponbackend.controller.response.ValidCouponsResponse;
 import rediclaim.couponbackend.controller.response.ValidCoupon;
 import rediclaim.couponbackend.domain.*;
-import rediclaim.couponbackend.exception.BadRequestException;
+import rediclaim.couponbackend.exception.CustomException;
 import rediclaim.couponbackend.repository.CouponRepository;
 import rediclaim.couponbackend.repository.UserCouponRepository;
 import rediclaim.couponbackend.repository.UserRepository;
@@ -35,7 +35,7 @@ public class CouponService {
      */
     @Retryable(
             retryFor = PessimisticLockingFailureException.class,
-            notRecoverable = BadRequestException.class,
+            notRecoverable = CustomException.class,
             maxAttempts = 3,
             backoff = @Backoff(delay = 1000)
     )
@@ -45,16 +45,16 @@ public class CouponService {
 
         UserCoupons userCoupons = UserCoupons.of(userCouponRepository.findByUserId(userId));
         if (userCoupons.hasCoupon(couponId)) {
-            throw new BadRequestException(USER_ALREADY_HAS_COUPON);
+            throw new CustomException(USER_ALREADY_HAS_COUPON);
         }
 
-        Coupon coupon = couponRepository.findByIdForUpdate(couponId).orElseThrow(() -> new BadRequestException(COUPON_NOT_FOUND));
+        Coupon coupon = couponRepository.findByIdForUpdate(couponId).orElseThrow(() -> new CustomException(COUPON_NOT_FOUND));
         if (!coupon.hasRemainingStock()) {
-            throw new BadRequestException(COUPON_OUT_OF_STOCK);
+            throw new CustomException(COUPON_OUT_OF_STOCK);
         }
 
         coupon.decrementRemainingCount();
-        User user = userRepository.findById(userId).orElseThrow(() -> new BadRequestException(USER_NOT_FOUND));
+        User user = userRepository.findById(userId).orElseThrow(() -> new CustomException(USER_NOT_FOUND));
         userCouponRepository.save(UserCoupon.builder()
                 .user(user)
                 .coupon(coupon)
@@ -65,7 +65,7 @@ public class CouponService {
 
     @Recover
     public void recoverLockTimeout(PessimisticLockingFailureException exception, Long userId, Long couponId) {
-        throw new BadRequestException(COUPON_LOCK_TIMEOUT);
+        throw new CustomException(COUPON_LOCK_TIMEOUT);
     }
 
     public ValidCouponsResponse showAllValidCoupons() {
@@ -80,9 +80,9 @@ public class CouponService {
 
     @Transactional
     public Long createCoupon(Long creatorId, int quantity, String couponName) {
-        User creator = userRepository.findById(creatorId).orElseThrow(() -> new BadRequestException(USER_NOT_FOUND));
+        User creator = userRepository.findById(creatorId).orElseThrow(() -> new CustomException(USER_NOT_FOUND));
         if (!creator.isCreator()) {
-            throw new BadRequestException(USER_NOT_ALLOWED_TO_CREATE_COUPON);
+            throw new CustomException(USER_NOT_ALLOWED_TO_CREATE_COUPON);
         }
 
         return couponRepository.save(Coupon.builder()

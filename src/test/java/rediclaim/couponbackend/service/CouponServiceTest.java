@@ -9,7 +9,7 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
 import rediclaim.couponbackend.controller.response.ValidCouponsResponse;
 import rediclaim.couponbackend.domain.*;
-import rediclaim.couponbackend.exception.BadRequestException;
+import rediclaim.couponbackend.exception.CustomException;
 import rediclaim.couponbackend.repository.CouponRepository;
 import rediclaim.couponbackend.repository.UserCouponRepository;
 import rediclaim.couponbackend.repository.UserRepository;
@@ -75,7 +75,7 @@ class CouponServiceTest {
 
         //when //then
         assertThatThrownBy(() -> couponService.issueCoupon(user.getId(), coupon.getId()))
-                .isInstanceOf(BadRequestException.class)
+                .isInstanceOf(CustomException.class)
                 .hasMessage(USER_ALREADY_HAS_COUPON.getMessage());
     }
 
@@ -90,7 +90,7 @@ class CouponServiceTest {
 
         //when //then
         assertThatThrownBy(() -> couponService.issueCoupon(user.getId(), coupon.getId()))
-                .isInstanceOf(BadRequestException.class)
+                .isInstanceOf(CustomException.class)
                 .hasMessage(COUPON_OUT_OF_STOCK.getMessage());
     }
 
@@ -142,7 +142,7 @@ class CouponServiceTest {
 
         //when //then
         assertThatThrownBy(() -> couponService.createCoupon(creator.getId() + 1, 10, "쿠폰1"))
-                .isInstanceOf(BadRequestException.class)
+                .isInstanceOf(CustomException.class)
                 .hasMessage(USER_NOT_FOUND.getMessage());
     }
 
@@ -155,7 +155,7 @@ class CouponServiceTest {
 
         //when //then
         assertThatThrownBy(() -> couponService.createCoupon(normalUser.getId(), 10, "쿠폰1"))
-                .isInstanceOf(BadRequestException.class)
+                .isInstanceOf(CustomException.class)
                 .hasMessage(USER_NOT_ALLOWED_TO_CREATE_COUPON.getMessage());
     }
 
