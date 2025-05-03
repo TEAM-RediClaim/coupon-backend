@@ -28,6 +28,8 @@ public class CouponService {
     private final CouponRepository couponRepository;
     private final UserRepository userRepository;
 
+    private final CouponIssueLogService logService;
+
     /**
      * 유저가 발급한 적이 없는 쿠폰이고, 재고가 있을 경우 해당 유저에게 쿠폰을 발급해준다
      */
@@ -39,6 +41,8 @@ public class CouponService {
     )
     @Transactional
     public void issueCoupon(Long userId, Long couponId) {
+        Long logId = logService.logRequest(userId, couponId);
+
         UserCoupons userCoupons = UserCoupons.of(userCouponRepository.findByUserId(userId));
         if (userCoupons.hasCoupon(couponId)) {
             throw new BadRequestException(USER_ALREADY_HAS_COUPON);
@@ -55,6 +59,8 @@ public class CouponService {
                 .user(user)
                 .coupon(coupon)
                 .build());
+
+        logService.logSuccess(logId);
     }
 
     @Recover
