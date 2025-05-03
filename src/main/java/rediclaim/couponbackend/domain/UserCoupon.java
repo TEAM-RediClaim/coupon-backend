@@ -1,6 +1,5 @@
 package rediclaim.couponbackend.domain;
 
-import jakarta.annotation.Nullable;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Builder;
@@ -10,7 +9,15 @@ import lombok.NoArgsConstructor;
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Entity
-@Table(name = "userCoupon")
+@Table(
+        name = "userCoupon",
+        uniqueConstraints = {
+                @UniqueConstraint(
+                        name = "uk_user_coupon",
+                        columnNames = {"user_id", "coupon_id"}
+                )
+        }
+)
 public class UserCoupon extends BaseEntity {
 
     @Id
@@ -18,9 +25,11 @@ public class UserCoupon extends BaseEntity {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "coupon_id", nullable = false)
     private Coupon coupon;
 
     @Builder
@@ -28,5 +37,4 @@ public class UserCoupon extends BaseEntity {
         this.user = user;
         this.coupon = coupon;
     }
-
 }

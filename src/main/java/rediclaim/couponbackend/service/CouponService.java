@@ -1,6 +1,7 @@
 package rediclaim.couponbackend.service;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.PessimisticLockingFailureException;
 import org.springframework.retry.annotation.Backoff;
 import org.springframework.retry.annotation.Recover;
@@ -43,22 +44,22 @@ public class CouponService {
     public void issueCoupon(Long userId, Long couponId) {
         Long logId = logService.logRequest(userId, couponId);
 
-        UserCoupons userCoupons = UserCoupons.of(userCouponRepository.findByUserId(userId));
-        if (userCoupons.hasCoupon(couponId)) {
-            throw new CustomException(USER_ALREADY_HAS_COUPON);
-        }
-
         Coupon coupon = couponRepository.findByIdForUpdate(couponId).orElseThrow(() -> new CustomException(COUPON_NOT_FOUND));
         if (!coupon.hasRemainingStock()) {
             throw new CustomException(COUPON_OUT_OF_STOCK);
         }
-
         coupon.decrementRemainingCount();
+
         User user = userRepository.findById(userId).orElseThrow(() -> new CustomException(USER_NOT_FOUND));
-        userCouponRepository.save(UserCoupon.builder()
-                .user(user)
-                .coupon(coupon)
-                .build());
+
+        try {
+            userCouponRepository.save(UserCoupon.builder()
+                    .user(user)
+                    .coupon(coupon)
+                    .build());
+        } catch (DataIntegrityViolationException e) {
+            throw new CustomException(USER_ALREADY_HAS_COUPON);
+        }
 
         logService.logSuccess(logId);
     }
