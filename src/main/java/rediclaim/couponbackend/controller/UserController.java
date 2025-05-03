@@ -9,7 +9,7 @@ import rediclaim.couponbackend.controller.request.RegisterUserRequest;
 import rediclaim.couponbackend.controller.response.IssuedCouponsResponse;
 import rediclaim.couponbackend.controller.response.RegisterCreatorResponse;
 import rediclaim.couponbackend.controller.response.RegisterUserResponse;
-import rediclaim.couponbackend.exception.BadRequestException;
+import rediclaim.couponbackend.exception.CustomException;
 import rediclaim.couponbackend.global.common.BaseResponse;
 import rediclaim.couponbackend.service.UserService;
 
@@ -29,7 +29,7 @@ public class UserController {
     @PostMapping("/api/users")
     public BaseResponse<RegisterUserResponse> registerUser(@Valid @RequestBody RegisterUserRequest request, BindingResult bindingResult) {
         if (bindingResult.hasErrors()) {
-            throw new BadRequestException(getErrorMessage(bindingResult));
+            throw new CustomException(getErrorMessage(bindingResult));
         }
 
         Long userId = userService.registerUser(request.getName());
@@ -41,7 +41,7 @@ public class UserController {
     @PostMapping("/api/creators")
     public BaseResponse<RegisterCreatorResponse> registerCreator(@Valid @RequestBody RegisterCreatorRequest request, BindingResult bindingResult) {
         if (bindingResult.hasErrors()) {
-            throw new BadRequestException(getErrorMessage(bindingResult));
+            throw new CustomException(getErrorMessage(bindingResult));
         }
 
         Long creatorId = userService.registerCreator(request.getName());
