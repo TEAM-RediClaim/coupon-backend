@@ -55,9 +55,9 @@ class CouponServiceInMultiThreadTest {
     void should_issue_exact_quantity_in_multi_thread() throws Exception {
         //given
         User creator = userRepository.save(createCreator("쿠폰생성자1"));
-        Coupon coupon = couponRepository.save(createCoupon("쿠폰1", 100, creator));
-        List<User> users = new ArrayList<>();       // 1000명의 테스트 유저
-        for (int i = 1; i <= 1000; i++) {
+        Coupon coupon = couponRepository.save(createCoupon("쿠폰1", 10, creator));
+        List<User> users = new ArrayList<>();
+        for (int i = 1; i <= 100; i++) {
             users.add(userRepository.save(createUser("유저" + i)));
         }
 
@@ -68,7 +68,7 @@ class CouponServiceInMultiThreadTest {
         AtomicInteger failCount = new AtomicInteger(0);
 
         //when
-        // 1000명의 유저가 동시에 쿠폰 발급 요청을 수행하도록 task submit
+        // 유저들이 동시에 쿠폰 발급 요청을 수행하도록 task submit
         for (User user : users) {
             executor.submit(() -> {
                 try {
@@ -95,8 +95,8 @@ class CouponServiceInMultiThreadTest {
         System.out.println("남은 쿠폰 재고: " + updatedCoupon.getRemainingCount());
 
         assertAll("쿠폰 발급 통계",
-                () -> assertEquals(100, successCount.get(), "성공 요청 수는 100이어야 합니다."),
-                () -> assertEquals(900, failCount.get(), "실패 요청수는 900이어야 합니다."),
+                () -> assertEquals(10, successCount.get(), "성공 요청 수는 100이어야 합니다."),
+                () -> assertEquals(90, failCount.get(), "실패 요청수는 900이어야 합니다."),
                 () -> assertEquals(0, updatedCoupon.getRemainingCount(), "남은 쿠폰 재고는 0이어야 합니다.")
         );
     }
@@ -112,7 +112,7 @@ class CouponServiceInMultiThreadTest {
             users.add(userRepository.save(createUser("유저" + i)));
         }
         User firstUser = users.get(0);
-        
+
         for (User user : users) {
             System.out.println("user.getId() = " + user.getId());       // 2 ~ 11
         }

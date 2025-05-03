@@ -1,6 +1,5 @@
 package rediclaim.couponbackend.service;
 
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -35,13 +34,6 @@ class CouponServiceTest {
 
     @Autowired
     private UserRepository userRepository;
-
-    @AfterEach
-    void tearDown() {
-        userCouponRepository.deleteAllInBatch();
-        couponRepository.deleteAllInBatch();
-        userRepository.deleteAllInBatch();
-    }
 
     @Test
     @DisplayName("유저는 이전에 발급한 적이 없고, 재고가 있는 쿠폰을 발급받을 수 있다.")
