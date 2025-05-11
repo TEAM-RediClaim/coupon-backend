@@ -1,14 +1,17 @@
 spring:
   datasource:
-    url: jdbc:h2:mem:~/rediClaim
+    url: jdbc:h2:mem:rediClaim;LOCK_TIMEOUT=3000
     driver-class-name: org.h2.Driver
     username: sa
     password:
 
+    hikari:
+      maximum-pool-size: 100    # 테스트용
+
   jpa:
     hibernate:
       ddl-auto: create
-    show-sql: true
-    properties:
-      hibernate:
-        format_sql: true
+#    show-sql: true
+#    properties:
+#      hibernate:
+#        format_sql: true

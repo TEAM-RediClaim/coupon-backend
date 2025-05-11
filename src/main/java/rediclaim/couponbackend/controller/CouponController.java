@@ -8,8 +8,9 @@ import rediclaim.couponbackend.controller.request.CreateCouponRequest;
 import rediclaim.couponbackend.controller.request.IssueCouponRequest;
 import rediclaim.couponbackend.controller.response.CreateCouponResponse;
 import rediclaim.couponbackend.controller.response.ValidCouponsResponse;
-import rediclaim.couponbackend.exception.BadRequestException;
+import rediclaim.couponbackend.exception.CustomException;
 import rediclaim.couponbackend.global.common.BaseResponse;
+import rediclaim.couponbackend.service.CouponIssueLogService;
 import rediclaim.couponbackend.service.CouponService;
 
 import static rediclaim.couponbackend.global.util.BindingResultUtils.getErrorMessage;
@@ -19,14 +20,18 @@ import static rediclaim.couponbackend.global.util.BindingResultUtils.getErrorMes
 public class CouponController {
 
     private final CouponService couponService;
+    private final CouponIssueLogService logService;
 
     @PostMapping("/api/coupons/{couponId}")
     public BaseResponse<Void> issueCoupon(@Valid @RequestBody IssueCouponRequest request, @PathVariable Long couponId, BindingResult bindingResult) {
         if (bindingResult.hasErrors()) {
-            throw new BadRequestException(getErrorMessage(bindingResult));
+            throw new CustomException(getErrorMessage(bindingResult));
         }
 
+        Long logId = logService.logRequest(request.getUserId(), couponId);
         couponService.issueCoupon(request.getUserId(), couponId);
+        logService.logSuccess(logId);
+
         return BaseResponse.ok(null);
     }
 
@@ -38,7 +43,7 @@ public class CouponController {
     @PostMapping("/api/coupons")
     public BaseResponse<CreateCouponResponse> createCoupon(@Valid @RequestBody CreateCouponRequest request, BindingResult bindingResult) {
         if (bindingResult.hasErrors()) {
-            throw new BadRequestException(getErrorMessage(bindingResult));
+            throw new CustomException(getErrorMessage(bindingResult));
         }
 
         Long couponId = couponService.createCoupon(request.getCreatorId(), request.getQuantity(), request.getCouponName());

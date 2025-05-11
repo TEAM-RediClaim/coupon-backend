@@ -1,6 +1,5 @@
 package rediclaim.couponbackend.service;
 
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -36,13 +35,6 @@ class UserServiceTest {
 
     @Autowired
     private UserRepository userRepository;
-
-    @AfterEach
-    void tearDown() {
-        userCouponRepository.deleteAllInBatch();
-        couponRepository.deleteAllInBatch();
-        userRepository.deleteAllInBatch();
-    }
 
     @Test
     @DisplayName("유저가 발급한 모든 쿠폰의 [id, 이름]을 보여준다.")

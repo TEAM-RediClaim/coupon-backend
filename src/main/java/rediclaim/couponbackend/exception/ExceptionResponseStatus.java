@@ -13,6 +13,7 @@ public enum ExceptionResponseStatus {
      */
     COUPON_NOT_FOUND(1000, HttpStatus.NOT_FOUND, "존재하지 않는 쿠폰입니다."),
     COUPON_OUT_OF_STOCK(1001, HttpStatus.BAD_REQUEST, "쿠폰 재고가 부족합니다."),
+    COUPON_LOCK_TIMEOUT(1002, HttpStatus.INTERNAL_SERVER_ERROR, "쿠폰 LOCK 획득 대기 시간이 초과되었습니다."),
 
     /**
      * 1100 : UserCoupon 에러
