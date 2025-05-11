@@ -29,8 +29,6 @@ public class CouponService {
     private final CouponRepository couponRepository;
     private final UserRepository userRepository;
 
-    private final CouponIssueLogService logService;
-
     /**
      * 유저가 발급한 적이 없는 쿠폰이고, 재고가 있을 경우 해당 유저에게 쿠폰을 발급해준다
      */
@@ -42,7 +40,6 @@ public class CouponService {
     )
     @Transactional
     public void issueCoupon(Long userId, Long couponId) {
-        Long logId = logService.logRequest(userId, couponId);
 
         Coupon coupon = couponRepository.findByIdForUpdate(couponId).orElseThrow(() -> new CustomException(COUPON_NOT_FOUND));
         if (!coupon.hasRemainingStock()) {
@@ -60,8 +57,6 @@ public class CouponService {
         } catch (DataIntegrityViolationException e) {
             throw new CustomException(USER_ALREADY_HAS_COUPON);
         }
-
-        logService.logSuccess(logId);
     }
 
     @Recover

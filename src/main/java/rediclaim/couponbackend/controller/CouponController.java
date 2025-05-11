@@ -10,6 +10,7 @@ import rediclaim.couponbackend.controller.response.CreateCouponResponse;
 import rediclaim.couponbackend.controller.response.ValidCouponsResponse;
 import rediclaim.couponbackend.exception.CustomException;
 import rediclaim.couponbackend.global.common.BaseResponse;
+import rediclaim.couponbackend.service.CouponIssueLogService;
 import rediclaim.couponbackend.service.CouponService;
 
 import static rediclaim.couponbackend.global.util.BindingResultUtils.getErrorMessage;
@@ -19,6 +20,7 @@ import static rediclaim.couponbackend.global.util.BindingResultUtils.getErrorMes
 public class CouponController {
 
     private final CouponService couponService;
+    private final CouponIssueLogService logService;
 
     @PostMapping("/api/coupons/{couponId}")
     public BaseResponse<Void> issueCoupon(@Valid @RequestBody IssueCouponRequest request, @PathVariable Long couponId, BindingResult bindingResult) {
@@ -26,7 +28,10 @@ public class CouponController {
             throw new CustomException(getErrorMessage(bindingResult));
         }
 
+        Long logId = logService.logRequest(request.getUserId(), couponId);
         couponService.issueCoupon(request.getUserId(), couponId);
+        logService.logSuccess(logId);
+
         return BaseResponse.ok(null);
     }
 
