@@ -2,6 +2,7 @@ package rediclaim.couponbackend.service;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.dao.PessimisticLockingFailureException;
 import org.springframework.retry.annotation.Backoff;
 import org.springframework.retry.annotation.Recover;
@@ -33,15 +34,14 @@ public class CouponService {
      * 유저가 발급한 적이 없는 쿠폰이고, 재고가 있을 경우 해당 유저에게 쿠폰을 발급해준다
      */
     @Retryable(
-            retryFor = PessimisticLockingFailureException.class,
+            retryFor = OptimisticLockingFailureException.class,
             notRecoverable = CustomException.class,
             maxAttempts = 3,
             backoff = @Backoff(delay = 1000)
     )
     @Transactional
     public void issueCoupon(Long userId, Long couponId) {
-
-        Coupon coupon = couponRepository.findByIdForUpdate(couponId).orElseThrow(() -> new CustomException(COUPON_NOT_FOUND));
+        Coupon coupon = couponRepository.findById(couponId).orElseThrow(() -> new CustomException(COUPON_NOT_FOUND));
         if (!coupon.hasRemainingStock()) {
             throw new CustomException(COUPON_OUT_OF_STOCK);
         }
@@ -60,7 +60,7 @@ public class CouponService {
     }
 
     @Recover
-    public void recoverLockTimeout(PessimisticLockingFailureException exception, Long userId, Long couponId) {
+    public void recoverLockTimeout(OptimisticLockingFailureException exception, Long userId, Long couponId) {
         throw new CustomException(COUPON_LOCK_TIMEOUT);
     }
 

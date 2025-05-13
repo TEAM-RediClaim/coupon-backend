@@ -25,6 +25,9 @@ public class Coupon extends BaseEntity {
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     private User creator;
 
+    @Version
+    private Long version;
+
     @Builder
     private Coupon(String name, int remainingCount, User creator) {
         this.name = name;
