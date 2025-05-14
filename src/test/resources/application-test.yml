@@ -6,7 +6,7 @@ spring:
     password:
 
     hikari:
-      maximum-pool-size: 100    # 테스트용
+      maximum-pool-size: 50    # 테스트용
 
   jpa:
     hibernate:

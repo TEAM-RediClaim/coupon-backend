@@ -101,75 +101,75 @@ class CouponServiceInMultiThreadTest {
         );
     }
 
-    @Test
-    @DisplayName("멀티 스레드 환경에서 쿠폰 발급 요청이 동시에 들어올 경우, 쿠폰은 선착순으로 발급되어야 한다.")
-    void should_issue_coupon_in_FIFO_policy() throws Exception {
-        //given
-        User creator = userRepository.save(createCreator("쿠폰생성자1"));
-        Coupon coupon = couponRepository.save(createCoupon("쿠폰1", 2, creator));
-        List<User> users = new ArrayList<>();       // 10명의 테스트 유저
-        for (int i = 1; i <= 10; i++) {
-            users.add(userRepository.save(createUser("유저" + i)));
-        }
-        User firstUser = users.get(0);
-
-        for (User user : users) {
-            System.out.println("user.getId() = " + user.getId());       // 2 ~ 11
-        }
-
-        Map<User, Semaphore> semaphoreMap = new ConcurrentHashMap<>();
-        CountDownLatch readyLatch = new CountDownLatch(users.size());
-        CountDownLatch doneLatch = new CountDownLatch(users.size());
-        CountDownLatch lockAcquired = new CountDownLatch(1);
-        Map<User, Integer> issueOrder = new ConcurrentHashMap<>();
-        AtomicInteger issueCount = new AtomicInteger();
-
-        //when
-        // user1 ~ user10 순서로 스레드 생성
-        for (User user : users) {
-            semaphoreMap.put(user, new Semaphore(0));
-            new Thread(() -> {
-                readyLatch.countDown();
-                try {
-                    semaphoreMap.get(user).acquire();
-
-                    if (user.equals(firstUser)) {
-                        TransactionTemplate tt = new TransactionTemplate(transactionManager);
-                        tt.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
-                        tt.execute(status -> {
-                            couponRepository.findByIdForUpdate(coupon.getId()).orElseThrow();
-                            lockAcquired.countDown();
-                            try {
-                                Thread.sleep(3001);         // user1은 3000ms 보다 긴 시간동안 락 점유
-                            } catch (InterruptedException e) {
-                            }
-                            return null;
-                        });
-                    }
-
-                    couponService.issueCoupon(user.getId(), coupon.getId());
-                    issueOrder.put(user, issueCount.getAndIncrement());
-                } catch (InterruptedException e) {
-                } finally {
-                    doneLatch.countDown();
-                }
-            }).start();
-        }
-
-        for (User user : users) {
-            semaphoreMap.get(user).release();       // user1 ~ user10 순서로 스레드 시작
-            Thread.sleep(50);
-        }
-
-        //then
-        assertTrue(doneLatch.await(20, TimeUnit.SECONDS));      // 모든 스레드 종료 대기
-
-        assertThat(issueOrder.size()).isEqualTo(2);
-        for (User user : issueOrder.keySet()) {
-            System.out.println("user.getId() = " + user.getId());
-            System.out.println("issueOrder.get(user) = " + issueOrder.get(user));
-        }
-    }
+//    @Test
+//    @DisplayName("멀티 스레드 환경에서 쿠폰 발급 요청이 동시에 들어올 경우, 쿠폰은 선착순으로 발급되어야 한다.")
+//    void should_issue_coupon_in_FIFO_policy() throws Exception {
+//        //given
+//        User creator = userRepository.save(createCreator("쿠폰생성자1"));
+//        Coupon coupon = couponRepository.save(createCoupon("쿠폰1", 2, creator));
+//        List<User> users = new ArrayList<>();       // 10명의 테스트 유저
+//        for (int i = 1; i <= 10; i++) {
+//            users.add(userRepository.save(createUser("유저" + i)));
+//        }
+//        User firstUser = users.get(0);
+//
+//        for (User user : users) {
+//            System.out.println("user.getId() = " + user.getId());       // 2 ~ 11
+//        }
+//
+//        Map<User, Semaphore> semaphoreMap = new ConcurrentHashMap<>();
+//        CountDownLatch readyLatch = new CountDownLatch(users.size());
+//        CountDownLatch doneLatch = new CountDownLatch(users.size());
+//        CountDownLatch lockAcquired = new CountDownLatch(1);
+//        Map<User, Integer> issueOrder = new ConcurrentHashMap<>();
+//        AtomicInteger issueCount = new AtomicInteger();
+//
+//        //when
+//        // user1 ~ user10 순서로 스레드 생성
+//        for (User user : users) {
+//            semaphoreMap.put(user, new Semaphore(0));
+//            new Thread(() -> {
+//                readyLatch.countDown();
+//                try {
+//                    semaphoreMap.get(user).acquire();
+//
+//                    if (user.equals(firstUser)) {
+//                        TransactionTemplate tt = new TransactionTemplate(transactionManager);
+//                        tt.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+//                        tt.execute(status -> {
+//                            couponRepository.findById(coupon.getId()).orElseThrow();
+//                            lockAcquired.countDown();
+//                            try {
+//                                Thread.sleep(3001);         // user1은 3000ms 보다 긴 시간동안 락 점유
+//                            } catch (InterruptedException e) {
+//                            }
+//                            return null;
+//                        });
+//                    }
+//
+//                    couponService.issueCoupon(user.getId(), coupon.getId());
+//                    issueOrder.put(user, issueCount.getAndIncrement());
+//                } catch (InterruptedException e) {
+//                } finally {
+//                    doneLatch.countDown();
+//                }
+//            }).start();
+//        }
+//
+//        for (User user : users) {
+//            semaphoreMap.get(user).release();       // user1 ~ user10 순서로 스레드 시작
+//            Thread.sleep(50);
+//        }
+//
+//        //then
+//        assertTrue(doneLatch.await(20, TimeUnit.SECONDS));      // 모든 스레드 종료 대기
+//
+//        assertThat(issueOrder.size()).isEqualTo(2);
+//        for (User user : issueOrder.keySet()) {
+//            System.out.println("user.getId() = " + user.getId());
+//            System.out.println("issueOrder.get(user) = " + issueOrder.get(user));
+//        }
+//    }
 
     private User createUser(String name) {
         return User.builder()

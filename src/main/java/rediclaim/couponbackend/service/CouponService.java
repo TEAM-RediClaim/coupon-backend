@@ -3,7 +3,6 @@ package rediclaim.couponbackend.service;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.OptimisticLockingFailureException;
-import org.springframework.dao.PessimisticLockingFailureException;
 import org.springframework.retry.annotation.Backoff;
 import org.springframework.retry.annotation.Recover;
 import org.springframework.retry.annotation.Retryable;
@@ -36,27 +35,30 @@ public class CouponService {
     @Retryable(
             retryFor = OptimisticLockingFailureException.class,
             notRecoverable = CustomException.class,
-            maxAttempts = 3,
+            maxAttempts = 5,
             backoff = @Backoff(delay = 1000)
     )
     @Transactional
     public void issueCoupon(Long userId, Long couponId) {
         Coupon coupon = couponRepository.findById(couponId).orElseThrow(() -> new CustomException(COUPON_NOT_FOUND));
+        User user = userRepository.findById(userId).orElseThrow(() -> new CustomException(USER_NOT_FOUND));
+
+        if (userCouponRepository.existsByUserAndCoupon(user, coupon)) {
+            throw new CustomException(USER_ALREADY_HAS_COUPON);
+        }
+
         if (!coupon.hasRemainingStock()) {
             throw new CustomException(COUPON_OUT_OF_STOCK);
         }
         coupon.decrementRemainingCount();
+        // 즉시 update & flush
+        couponRepository.save(coupon);
+        couponRepository.flush();
 
-        User user = userRepository.findById(userId).orElseThrow(() -> new CustomException(USER_NOT_FOUND));
-
-        try {
-            userCouponRepository.save(UserCoupon.builder()
-                    .user(user)
-                    .coupon(coupon)
-                    .build());
-        } catch (DataIntegrityViolationException e) {
-            throw new CustomException(USER_ALREADY_HAS_COUPON);
-        }
+        userCouponRepository.save(UserCoupon.builder()
+                .user(user)
+                .coupon(coupon)
+                .build());
     }
 
     @Recover

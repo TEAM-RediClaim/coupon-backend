@@ -7,11 +7,11 @@ export const options = {
     scenarios: {
         issue_flow: {
             executor: 'constant-arrival-rate', // 초당 고정 RPS
-            rate: 10,                          // 1초당 50회
+            rate: 100,                          // 1초당 ,, 회
             timeUnit: '1s',
-            duration: '30s',                   // 총 30초간
-            preAllocatedVUs: 50,
-            maxVUs: 100,
+            duration: '120s',                   // 총 ,, 초간
+            preAllocatedVUs: 300,
+            maxVUs: 300,
         },
     },
     thresholds: {
