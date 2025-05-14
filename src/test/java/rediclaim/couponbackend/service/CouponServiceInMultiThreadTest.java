@@ -72,7 +72,7 @@ class CouponServiceInMultiThreadTest {
         for (User user : users) {
             executor.submit(() -> {
                 try {
-                    couponService.issueCoupon(user.getId(), coupon.getId());
+                    couponService.issueCoupon(user.getId(), coupon.getId(), 0L);
                     successCount.incrementAndGet();
                 } catch (Exception e) {
                     failCount.incrementAndGet();

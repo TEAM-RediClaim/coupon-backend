@@ -45,7 +45,7 @@ class CouponServiceTest {
         Coupon coupon = couponRepository.save(createCoupon("쿠폰1", 10, creator));
 
         //when
-        couponService.issueCoupon(user.getId(), coupon.getId());
+        couponService.issueCoupon(user.getId(), coupon.getId(), 0L);
 
         //then
         assertThat(coupon.getRemainingCount()).isEqualTo(9);
@@ -63,10 +63,10 @@ class CouponServiceTest {
         User user = userRepository.save(createUser("유저1"));
         Coupon coupon = couponRepository.save(createCoupon("쿠폰1", 10, creator));
 
-        couponService.issueCoupon(user.getId(), coupon.getId());        // 유저가 이미 쿠폰 발급한 상황
+        couponService.issueCoupon(user.getId(), coupon.getId(), 0L);        // 유저가 이미 쿠폰 발급한 상황
 
         //when //then
-        assertThatThrownBy(() -> couponService.issueCoupon(user.getId(), coupon.getId()))
+        assertThatThrownBy(() -> couponService.issueCoupon(user.getId(), coupon.getId(), 0L))
                 .isInstanceOf(CustomException.class)
                 .hasMessage(USER_ALREADY_HAS_COUPON.getMessage());
     }
@@ -81,7 +81,7 @@ class CouponServiceTest {
         Coupon coupon = couponRepository.save(createCoupon("쿠폰1", 0, creator));
 
         //when //then
-        assertThatThrownBy(() -> couponService.issueCoupon(user.getId(), coupon.getId()))
+        assertThatThrownBy(() -> couponService.issueCoupon(user.getId(), coupon.getId(), 0L))
                 .isInstanceOf(CustomException.class)
                 .hasMessage(COUPON_OUT_OF_STOCK.getMessage());
     }
