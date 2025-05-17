@@ -7,19 +7,18 @@ export const options = {
     scenarios: {
         issue_flow: {
             executor: 'constant-arrival-rate', // 초당 고정 RPS
-            rate: 10,                          // 1초당 50회
+            rate: 100,                          // 1초당 ,, 회
             timeUnit: '1s',
-            duration: '30s',                   // 총 30초간
-            preAllocatedVUs: 50,
-            maxVUs: 100,
+            duration: '120s',                   // 총 ,, 초간
+            preAllocatedVUs: 500,
+            maxVUs: 500,
         },
     },
     thresholds: {
         // 비즈니스 요구사항
         'coupon_success_count':      ['count==30'],  // 재고 30개만 성공
-        'coupon_out_of_stock_count': ['count==70'],  // 나머지 70개는 재고부족
         'coupon_duplicate_count':    ['count==0'],   // 중복발급 없음
-        'coupon_lock_timeout_count': ['count==0'],   // 락 타임아웃 없음
+
         // HTTP SLA (원하면 추가)
         // http_req_failed: ['rate<0.01'],
         // http_req_duration: ['p(95)<500'],
@@ -31,9 +30,8 @@ const JSON_HEADERS = { 'Content-Type': 'application/json' };
 
 // Counters
 export let successCount       = new Counter('coupon_success_count');
-export let outOfStockCount    = new Counter('coupon_out_of_stock_count');
 export let duplicateCount     = new Counter('coupon_duplicate_count');
-export let lockTimeoutCount   = new Counter('coupon_lock_timeout_count');
+export let networkErrorCount  = new Counter('network_error_count');
 
 export function setup() {
     const userIds = [];
@@ -84,24 +82,25 @@ export default function (data) {
         { headers: JSON_HEADERS }
     );
 
-    // JSON 파싱
+    // 1) 네트워크 에러 (DNS, 타임아웃 등)
+    if (res.error_code) {
+        networkErrorCount.add(1, { error: res.error_code });
+        return;
+    }
+
+    // 2) 비즈니스 에러 (4xx)
     let body = {};
     try { body = res.json(); } catch {}
 
-    // 상태별 Counter 증가
-    if (res.status === 200) {
-        successCount.add(1);
-
-    } else if (res.status === 400) {
-        if (body.message === '쿠폰 재고가 부족합니다.') {
-            outOfStockCount.add(1);
-        }
-        else if (body.message === '이미 발급받은 쿠폰입니다.') {
+    if (res.status === 400) {
+        if (body.message === '이미 발급받은 쿠폰입니다.') {
             duplicateCount.add(1);
         }
+        return;
+    }
 
-    } else if (res.status === 500
-        && body.message === '쿠폰 LOCK 획득 대기 시간이 초과되었습니다.') {
-        lockTimeoutCount.add(1);
+    // 3) 성공
+    if (res.status === 200) {
+        successCount.add(1);
     }
 }

@@ -32,11 +32,25 @@ public class CouponIssueLog {
     @Column(nullable = false)
     private boolean issueStatus;
 
+    @Column(nullable = false)
+    private int attemptCount;
+
+    @Column(nullable = false)
+    private boolean isLastAttempt;
+
     public void changeIssueStatus(boolean issueStatus) {
         this.issueStatus = issueStatus;
     }
 
     public void setIssueTime(LocalDateTime issueTime) {
         this.issueTime = issueTime;
+    }
+
+    public void setAttemptCount(int attemptCount) {
+        this.attemptCount = attemptCount;
+    }
+
+    public void markLastAttempt() {
+        this.isLastAttempt = true;
     }
 }

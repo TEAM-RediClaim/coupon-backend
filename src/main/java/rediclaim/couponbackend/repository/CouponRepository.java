@@ -18,8 +18,8 @@ public interface CouponRepository extends JpaRepository<Coupon, Long> {
 
     List<Coupon> findByRemainingCountGreaterThan(int count);
 
-    @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("select c from Coupon c where c.id = :id")
-    @QueryHints({@QueryHint(name = "jakarta.persistence.lock.timeout", value = "3000")})      // 3초 타임아웃
-    Optional<Coupon> findByIdForUpdate(@Param("id") Long id);
+//    @Lock(LockModeType.PESSIMISTIC_WRITE)
+//    @Query("select c from Coupon c where c.id = :id")
+//    @QueryHints({@QueryHint(name = "jakarta.persistence.lock.timeout", value = "3000")})      // 3초 타임아웃
+//    Optional<Coupon> findByIdForUpdate(@Param("id") Long id);
 }

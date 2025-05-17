@@ -29,7 +29,7 @@ public class CouponController {
         }
 
         Long logId = logService.logRequest(request.getUserId(), couponId);
-        couponService.issueCoupon(request.getUserId(), couponId);
+        couponService.issueCoupon(request.getUserId(), couponId, logId);
         logService.logSuccess(logId);
 
         return BaseResponse.ok(null);
