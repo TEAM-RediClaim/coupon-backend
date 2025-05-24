@@ -4,6 +4,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
 import rediclaim.couponbackend.controller.response.ValidCouponsResponse;
@@ -35,6 +36,11 @@ class CouponServiceTest {
     @Autowired
     private UserRepository userRepository;
 
+    @Autowired
+    private RedisTemplate<String, String> redisTemplate;
+
+    private static final String STOCK_KEY_PREFIX = "STOCK_";
+
     @Test
     @DisplayName("유저는 이전에 발급한 적이 없고, 재고가 있는 쿠폰을 발급받을 수 있다.")
     @Transactional
@@ -44,8 +50,11 @@ class CouponServiceTest {
         User user = userRepository.save(createUser("유저1"));
         Coupon coupon = couponRepository.save(createCoupon("쿠폰1", 10, creator));
 
+        String stockKey = STOCK_KEY_PREFIX + coupon.getId();
+        redisTemplate.opsForValue().set(stockKey, String.valueOf(10));      // redis 세팅
+
         //when
-        couponService.issueCoupon(user.getId(), coupon.getId(), 0L);
+        couponService.issueCoupon(user.getId(), coupon.getId());
 
         //then
         assertThat(coupon.getRemainingCount()).isEqualTo(9);
@@ -63,10 +72,13 @@ class CouponServiceTest {
         User user = userRepository.save(createUser("유저1"));
         Coupon coupon = couponRepository.save(createCoupon("쿠폰1", 10, creator));
 
-        couponService.issueCoupon(user.getId(), coupon.getId(), 0L);        // 유저가 이미 쿠폰 발급한 상황
+        String stockKey = STOCK_KEY_PREFIX + coupon.getId();
+        redisTemplate.opsForValue().set(stockKey, String.valueOf(10));      // redis 세팅
+
+        couponService.issueCoupon(user.getId(), coupon.getId());        // 유저가 이미 쿠폰 발급한 상황
 
         //when //then
-        assertThatThrownBy(() -> couponService.issueCoupon(user.getId(), coupon.getId(), 0L))
+        assertThatThrownBy(() -> couponService.issueCoupon(user.getId(), coupon.getId()))
                 .isInstanceOf(CustomException.class)
                 .hasMessage(USER_ALREADY_HAS_COUPON.getMessage());
     }
@@ -80,8 +92,11 @@ class CouponServiceTest {
         User user = userRepository.save(createUser("유저1"));
         Coupon coupon = couponRepository.save(createCoupon("쿠폰1", 0, creator));
 
+        String stockKey = STOCK_KEY_PREFIX + coupon.getId();
+        redisTemplate.opsForValue().set(stockKey, String.valueOf(0));      // redis 세팅
+
         //when //then
-        assertThatThrownBy(() -> couponService.issueCoupon(user.getId(), coupon.getId(), 0L))
+        assertThatThrownBy(() -> couponService.issueCoupon(user.getId(), coupon.getId()))
                 .isInstanceOf(CustomException.class)
                 .hasMessage(COUPON_OUT_OF_STOCK.getMessage());
     }

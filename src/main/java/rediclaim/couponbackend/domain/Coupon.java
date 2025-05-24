@@ -25,9 +25,6 @@ public class Coupon extends BaseEntity {
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     private User creator;
 
-    @Version
-    private Long version;
-
     @Builder
     private Coupon(String name, int remainingCount, User creator) {
         this.name = name;
@@ -48,5 +45,9 @@ public class Coupon extends BaseEntity {
             throw new IllegalStateException("쿠폰 재고가 부족하여 차감할 수 없습니다.");
         }
         remainingCount--;
+    }
+
+    public void setRemainingCount(int remainingCount) {
+        this.remainingCount = remainingCount;
     }
 }

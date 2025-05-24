@@ -5,10 +5,9 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.PlatformTransactionManager;
-import org.springframework.transaction.TransactionDefinition;
-import org.springframework.transaction.support.TransactionTemplate;
 import rediclaim.couponbackend.domain.Coupon;
 import rediclaim.couponbackend.domain.User;
 import rediclaim.couponbackend.repository.CouponRepository;
@@ -17,10 +16,8 @@ import rediclaim.couponbackend.repository.UserRepository;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
-import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
 import static rediclaim.couponbackend.domain.UserType.*;
 
@@ -43,6 +40,11 @@ class CouponServiceInMultiThreadTest {
     @Autowired
     private PlatformTransactionManager transactionManager;
 
+    @Autowired
+    private RedisTemplate<String, String> redisTemplate;
+
+    private static final String STOCK_KEY_PREFIX = "STOCK_";
+
     @AfterEach
     void tearDown() {
         userCouponRepository.deleteAllInBatch();
@@ -56,6 +58,10 @@ class CouponServiceInMultiThreadTest {
         //given
         User creator = userRepository.save(createCreator("쿠폰생성자1"));
         Coupon coupon = couponRepository.save(createCoupon("쿠폰1", 10, creator));
+
+        String stockKey = STOCK_KEY_PREFIX + coupon.getId();
+        redisTemplate.opsForValue().set(stockKey, String.valueOf(10));      // redis 세팅
+
         List<User> users = new ArrayList<>();
         for (int i = 1; i <= 100; i++) {
             users.add(userRepository.save(createUser("유저" + i)));
@@ -72,7 +78,7 @@ class CouponServiceInMultiThreadTest {
         for (User user : users) {
             executor.submit(() -> {
                 try {
-                    couponService.issueCoupon(user.getId(), coupon.getId(), 0L);
+                    couponService.issueCoupon(user.getId(), coupon.getId());
                     successCount.incrementAndGet();
                 } catch (Exception e) {
                     failCount.incrementAndGet();

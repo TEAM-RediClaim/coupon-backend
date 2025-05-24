@@ -47,6 +47,10 @@ dependencies {
     // retry
     implementation 'org.springframework.boot:spring-boot-starter-aop'
     implementation 'org.springframework.retry:spring-retry'
+
+    // redis
+    implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+    testImplementation('com.github.codemonstur:embedded-redis:1.4.0')
 }
 
 tasks.named('test') {

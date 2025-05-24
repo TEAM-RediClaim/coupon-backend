@@ -13,6 +13,7 @@ import rediclaim.couponbackend.exception.CustomException;
 import rediclaim.couponbackend.global.common.BaseResponse;
 import rediclaim.couponbackend.service.UserService;
 
+import static rediclaim.couponbackend.exception.ExceptionResponseStatus.REQUEST_VALIDATION_FAILED;
 import static rediclaim.couponbackend.global.util.BindingResultUtils.getErrorMessage;
 
 @RestController
@@ -29,7 +30,7 @@ public class UserController {
     @PostMapping("/api/users")
     public BaseResponse<RegisterUserResponse> registerUser(@Valid @RequestBody RegisterUserRequest request, BindingResult bindingResult) {
         if (bindingResult.hasErrors()) {
-            throw new CustomException(getErrorMessage(bindingResult));
+            throw new CustomException(REQUEST_VALIDATION_FAILED, getErrorMessage(bindingResult));
         }
 
         Long userId = userService.registerUser(request.getName());
@@ -41,7 +42,7 @@ public class UserController {
     @PostMapping("/api/creators")
     public BaseResponse<RegisterCreatorResponse> registerCreator(@Valid @RequestBody RegisterCreatorRequest request, BindingResult bindingResult) {
         if (bindingResult.hasErrors()) {
-            throw new CustomException(getErrorMessage(bindingResult));
+            throw new CustomException(REQUEST_VALIDATION_FAILED, getErrorMessage(bindingResult));
         }
 
         Long creatorId = userService.registerCreator(request.getName());
