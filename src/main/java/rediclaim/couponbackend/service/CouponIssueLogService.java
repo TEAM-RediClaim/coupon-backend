@@ -1,11 +1,8 @@
 package rediclaim.couponbackend.service;
 
 import lombok.RequiredArgsConstructor;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Propagation;
-import org.springframework.transaction.annotation.Transactional;
 import rediclaim.couponbackend.domain.CouponIssueLog;
 import rediclaim.couponbackend.repository.CouponIssueLogRepository;
 
@@ -15,40 +12,28 @@ import java.time.LocalDateTime;
 @RequiredArgsConstructor
 public class CouponIssueLogService {
 
-    private static final Logger log = LogManager.getLogger(CouponIssueLogService.class);
     private final CouponIssueLogRepository logRepository;
 
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public Long logRequest(Long userId, Long couponId) {
+    @Async
+    public void logRequest(Long userId, Long couponId, LocalDateTime requestTime) {
         CouponIssueLog log = CouponIssueLog.builder()
                 .userId(userId)
                 .couponId(couponId)
-                .requestTime(LocalDateTime.now())
+                .requestTime(requestTime)
                 .issueStatus(false)
-                .attemptCount(0)
+                .attemptCount(1)
                 .isLastAttempt(false)
                 .build();
-        return logRepository.save(log).getId();
+        logRepository.save(log);
     }
 
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void logSuccess(Long id) {
-        logRepository.findById(id).ifPresent(log -> {
-            log.setIssueTime(LocalDateTime.now());
-            log.changeIssueStatus(true);
-        });
-    }
-
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void updateAttemptCount(Long id, int attemptCount) {
-        logRepository.findById(id).ifPresent(log -> log.setAttemptCount(attemptCount));
-    }
-
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void markLastAttempt(Long id, int attemptCount) {
-        logRepository.findById(id).ifPresent(log -> {
-            log.setAttemptCount(attemptCount);
-            log.markLastAttempt();
+    @Async
+    public void logSuccess(Long userId, Long couponId, LocalDateTime requestTime, LocalDateTime issueTime) {
+        logRepository.findByUserIdAndCouponIdAndRequestTime(userId, couponId, requestTime)
+                .ifPresent(log -> {
+                    log.setIssueTime(issueTime);
+                    log.changeIssueStatus(true);
+                    logRepository.save(log);
         });
     }
 }

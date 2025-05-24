@@ -13,6 +13,9 @@ import rediclaim.couponbackend.global.common.BaseResponse;
 import rediclaim.couponbackend.service.CouponIssueLogService;
 import rediclaim.couponbackend.service.CouponService;
 
+import java.time.LocalDateTime;
+
+import static rediclaim.couponbackend.exception.ExceptionResponseStatus.REQUEST_VALIDATION_FAILED;
 import static rediclaim.couponbackend.global.util.BindingResultUtils.getErrorMessage;
 
 @RestController
@@ -25,12 +28,16 @@ public class CouponController {
     @PostMapping("/api/coupons/{couponId}")
     public BaseResponse<Void> issueCoupon(@Valid @RequestBody IssueCouponRequest request, @PathVariable Long couponId, BindingResult bindingResult) {
         if (bindingResult.hasErrors()) {
-            throw new CustomException(getErrorMessage(bindingResult));
+            throw new CustomException(REQUEST_VALIDATION_FAILED, getErrorMessage(bindingResult));
         }
 
-        Long logId = logService.logRequest(request.getUserId(), couponId);
-        couponService.issueCoupon(request.getUserId(), couponId, logId);
-        logService.logSuccess(logId);
+        LocalDateTime requestTime = LocalDateTime.now();
+        logService.logRequest(request.getUserId(), couponId, requestTime);
+
+        couponService.issueCoupon(request.getUserId(), couponId);
+
+        LocalDateTime issueTime = LocalDateTime.now();
+        logService.logSuccess(request.getUserId(), couponId, requestTime, issueTime);
 
         return BaseResponse.ok(null);
     }
@@ -43,7 +50,7 @@ public class CouponController {
     @PostMapping("/api/coupons")
     public BaseResponse<CreateCouponResponse> createCoupon(@Valid @RequestBody CreateCouponRequest request, BindingResult bindingResult) {
         if (bindingResult.hasErrors()) {
-            throw new CustomException(getErrorMessage(bindingResult));
+            throw new CustomException(REQUEST_VALIDATION_FAILED, getErrorMessage(bindingResult));
         }
 
         Long couponId = couponService.createCoupon(request.getCreatorId(), request.getQuantity(), request.getCouponName());
