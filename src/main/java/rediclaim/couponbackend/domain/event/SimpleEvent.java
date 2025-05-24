@@ -19,4 +19,4 @@ public class SimpleEvent {
         this.message = message;
         this.timestamp = LocalDateTime.now();
     }
-} 
+}
