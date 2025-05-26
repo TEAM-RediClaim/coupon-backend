@@ -7,11 +7,15 @@ import org.springframework.web.bind.annotation.*;
 import rediclaim.couponbackend.controller.request.CreateCouponRequest;
 import rediclaim.couponbackend.controller.request.IssueCouponRequest;
 import rediclaim.couponbackend.controller.response.CreateCouponResponse;
+import rediclaim.couponbackend.controller.response.LogRecord;
 import rediclaim.couponbackend.controller.response.ValidCouponsResponse;
+import rediclaim.couponbackend.controller.response.VerificationLogsResponse;
 import rediclaim.couponbackend.exception.CustomException;
 import rediclaim.couponbackend.global.common.BaseResponse;
 import rediclaim.couponbackend.service.CouponService;
 import rediclaim.couponbackend.service.OrderVerificationService;
+
+import java.util.List;
 
 import static rediclaim.couponbackend.exception.ExceptionResponseStatus.REQUEST_VALIDATION_FAILED;
 import static rediclaim.couponbackend.global.util.BindingResultUtils.getErrorMessage;
@@ -51,5 +55,14 @@ public class CouponController {
         return BaseResponse.ok(CreateCouponResponse.builder()
                         .couponId(couponId)
                         .build());
+    }
+
+    @GetMapping("/api/coupons/{couponId}/verification-logs")
+    public BaseResponse<VerificationLogsResponse> getVerificationLogs(@PathVariable Long couponId) {
+        List<LogRecord> completionLogs = orderVerificationService.getCompletionLogs(couponId);
+
+        return BaseResponse.ok(VerificationLogsResponse.builder()
+                .completions(completionLogs)
+                .build());
     }
 }
