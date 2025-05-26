@@ -63,8 +63,6 @@ public class CouponService {
                     .build());
 
             // Coupon update
-//            coupon.setRemainingCount(remaining.intValue());     // coupon의 재고정보를 redis에 저장된 값으로 update
-//            couponRepository.save(coupon);
             syncCouponCountFromRedis(coupon, stockKey);
         } catch (DataIntegrityViolationException e) {       // 유저가 이미 특정 쿠폰을 발급받은 경우 -> 쿠폰 재고 복원
             redisTemplate.opsForValue().increment(stockKey);
