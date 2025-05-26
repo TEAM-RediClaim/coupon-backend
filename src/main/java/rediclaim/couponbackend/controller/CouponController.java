@@ -10,10 +10,8 @@ import rediclaim.couponbackend.controller.response.CreateCouponResponse;
 import rediclaim.couponbackend.controller.response.ValidCouponsResponse;
 import rediclaim.couponbackend.exception.CustomException;
 import rediclaim.couponbackend.global.common.BaseResponse;
-import rediclaim.couponbackend.service.CouponIssueLogService;
 import rediclaim.couponbackend.service.CouponService;
-
-import java.time.LocalDateTime;
+import rediclaim.couponbackend.service.OrderVerificationService;
 
 import static rediclaim.couponbackend.exception.ExceptionResponseStatus.REQUEST_VALIDATION_FAILED;
 import static rediclaim.couponbackend.global.util.BindingResultUtils.getErrorMessage;
@@ -23,7 +21,7 @@ import static rediclaim.couponbackend.global.util.BindingResultUtils.getErrorMes
 public class CouponController {
 
     private final CouponService couponService;
-    private final CouponIssueLogService logService;
+    private final OrderVerificationService orderVerificationService;
 
     @PostMapping("/api/coupons/{couponId}")
     public BaseResponse<Void> issueCoupon(@Valid @RequestBody IssueCouponRequest request, @PathVariable Long couponId, BindingResult bindingResult) {
@@ -31,13 +29,9 @@ public class CouponController {
             throw new CustomException(REQUEST_VALIDATION_FAILED, getErrorMessage(bindingResult));
         }
 
-        LocalDateTime requestTime = LocalDateTime.now();
-        logService.logRequest(request.getUserId(), couponId, requestTime);
-
+        Long requestSequence = orderVerificationService.assignRequestOrder(request.getUserId(), couponId);
         couponService.issueCoupon(request.getUserId(), couponId);
-
-        LocalDateTime issueTime = LocalDateTime.now();
-        logService.logSuccess(request.getUserId(), couponId, requestTime, issueTime);
+        orderVerificationService.recordCompletion(request.getUserId(), couponId, requestSequence);
 
         return BaseResponse.ok(null);
     }
