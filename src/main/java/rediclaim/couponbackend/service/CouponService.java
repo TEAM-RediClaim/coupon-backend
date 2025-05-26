@@ -32,14 +32,13 @@ public class CouponService {
     private final CouponRepository couponRepository;
     private final UserRepository userRepository;
 
-    // Lua script for atomic DECR/INCR
+    // Lua script for atomic DECR
     private static final String ATOMIC_DECR_SCRIPT =
-            "local v = redis.call('DECR', KEYS[1])\n" +
-                    "if v < 0 then\n" +
-                    "  redis.call('INCR', KEYS[1])\n" +
-                    "  return -1\n" +
+            "local stock = redis.call('GET', KEYS[1])\n" +
+                    "if tonumber(stock) > 0 then\n" +
+                    "  return redis.call('DECR', KEYS[1])\n" +
                     "end\n" +
-                    "return v";
+                    "return -1";
 
     /**
      * 유저가 발급한 적이 없는 쿠폰이고, 재고가 있을 경우 해당 유저에게 쿠폰을 발급해준다
@@ -64,16 +63,16 @@ public class CouponService {
 
             // Coupon update
             syncCouponCountFromRedis(coupon, stockKey);
-        } catch (DataIntegrityViolationException e) {       // 유저가 이미 특정 쿠폰을 발급받은 경우 -> 쿠폰 재고 복원
-            redisTemplate.opsForValue().increment(stockKey);
-            syncCouponCountFromRedis(coupon, stockKey);
-            throw new CustomException(USER_ALREADY_HAS_COUPON);
         } catch (Exception e) {
-            // DB 에러 발생시 redis 재고 복원
-            redisTemplate.opsForValue().increment(stockKey);
+            redisTemplate.opsForValue().increment(stockKey);        // 쿠폰 재고 원복
             syncCouponCountFromRedis(coupon, stockKey);
-            log.error(e.getMessage());
-            throw new CustomException(DATABASE_ERROR);
+
+            if (e instanceof DataIntegrityViolationException) {
+                throw new CustomException(USER_ALREADY_HAS_COUPON);
+            } else {
+                log.error(e.getMessage());
+                throw new CustomException(DATABASE_ERROR);
+            }
         }
     }
 
