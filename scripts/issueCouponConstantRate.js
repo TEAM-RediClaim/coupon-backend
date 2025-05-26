@@ -9,13 +9,10 @@ const QUANTITY = 3000;               // 생성할 쿠폰의 수량
 
 export const options = {
     setupTimeout: '180s',       // setup 메서드가 실행되는 최대 대기 시간
-    http: {
-        timeout: '120s'         // 글로벌 http 타임아웃
-    },
     scenarios: {
         issue_flow: {
             executor: 'constant-arrival-rate',      // 초당 고정 RPS
-            rate: 1300,                             // 1초당 ,, 회
+            rate: 1000,                             // 1초당 ,, 회
             timeUnit: '1s',
             duration: '120s',                       // 총 ,, 초간
             preAllocatedVUs: PREALLOCATED_VUS,
@@ -42,50 +39,11 @@ export let outOfStockErrorCount = new Counter('out_of_stock_error_count');
 export let serverErrorCount = new Counter('server_error_count');
 export let networkErrorCount = new Counter('network_error_count');
 
-// export function setup(){
-//     const userIds = [];
-//
-//     // 1) 일반 유저 생성
-//     for (let i = 1; i <= USER_COUNT; i++) {
-//         const res = http.post(
-//             `${BASE_URL}/api/users`,
-//             JSON.stringify({ name: `user_${i}` }),
-//             { headers: JSON_HEADERS }
-//         );
-//         check(res, { 'create user OK': (r) => r.status === 200 });
-//         userIds.push(res.json().result.userId);
-//     }
-//
-//     // 2) 쿠폰 생성자 생성
-//     const creatorRes = http.post(
-//         `${BASE_URL}/api/creators`,
-//         JSON.stringify({ name: 'creator_1' }),
-//         { headers: JSON_HEADERS }
-//     );
-//     check(creatorRes, { 'create creator OK': (r) => r.status === 200 });
-//     const creatorId = creatorRes.json().result.creatorId;
-//
-//     // 3) 쿠폰 1개 생성
-//     const couponRes = http.post(
-//         `${BASE_URL}/api/coupons`,
-//         JSON.stringify({
-//             creatorId:  creatorId,
-//             quantity:   QUANTITY,
-//             couponName: 'load-test-coupon',
-//         }),
-//         { headers: JSON_HEADERS }
-//     );
-//     check(couponRes, { 'create coupon OK': (r) => r.status === 200 });
-//     const couponId = couponRes.json().result.couponId;
-//
-//     return { userIds, couponId };
-// }
-
 export function setup() {
     const userIds = [];
 
     // 1) 일반 유저 생성 (배치 요청)
-    const batchSize = 5000;
+    const batchSize = 2000;
     let batchRequests = [];
     for (let i = 1; i <= USER_COUNT; i++) {
         batchRequests.push([
@@ -183,4 +141,31 @@ export default function (data) {
     if (res.status === 200) {
         successCount.add(1);
     }
+}
+
+export function teardown(data) {        // 부하테스트 이후 실행
+    const { couponId } = data;
+    // Redis에 쌓인 쿠폰 발금 요청/완료 로그를 조회하는 검증 전용 api 호출
+    const res = http.get(`${BASE_URL}/api/coupons/${couponId}/verification-logs`);
+    check(res, { 'got verification logs': r => r.status === 200 });
+
+    const body = res.json();
+    const result = body.result;
+    if (!result) {
+        throw new Error('verification-logs API에 result가 없습니다');
+    }
+
+    const completions = result.completions || [];
+
+    // 성공 로그가 요청 순번에 대하여 오름차순 정렬(1, 2, ,,, N)인지 확인 -> 이래야 선착순 쿠폰 발급이 보장되는 것임
+    const sequences = completions.map(r => r.requestSequence);
+    const N = QUANTITY;
+    const isSequential = sequences.length === N && sequences.every((v, i) => v === i + 1);
+
+    console.log(`Completion sequences : ${JSON.stringify(sequences)}`);
+    console.log(`Is true 선착순 쿠폰 발급? :  ${isSequential}`);
+
+    check(isSequential, {
+        [`completion sequences are 1..${N}`]: v => v
+    });
 }
