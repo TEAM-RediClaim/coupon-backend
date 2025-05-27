@@ -24,7 +24,17 @@ public enum ExceptionResponseStatus {
      * 1200 : User 에러
      */
     USER_NOT_FOUND(1200, HttpStatus.NOT_FOUND, "존재하지 않는 유저입니다."),
-    USER_NOT_ALLOWED_TO_CREATE_COUPON(1201, HttpStatus.BAD_REQUEST, "일반 유저는 쿠폰을 생성할 수 없습니다.")
+    USER_NOT_ALLOWED_TO_CREATE_COUPON(1201, HttpStatus.BAD_REQUEST, "일반 유저는 쿠폰을 생성할 수 없습니다."),
+
+    /**
+     * 4000 : Request Validation 에러
+     */
+    REQUEST_VALIDATION_FAILED(4000, HttpStatus.BAD_REQUEST, "요청 데이터 검증에 실패했습니다."),
+
+    /**
+     * 5000 : Database 에러
+     */
+    DATABASE_ERROR(5000, HttpStatus.INTERNAL_SERVER_ERROR, "database에서 error가 발생했습니다")
     ;
 
     private final int code;
