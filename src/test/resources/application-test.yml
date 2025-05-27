@@ -23,3 +23,13 @@ spring:
     redis:
       host: localhost
       port: 6380    # 6379 port는 사용중
+
+  kafka:
+    bootstrap-servers: localhost:9092
+    producer:
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+    consumer:
+      group-id: coupon-backend-group
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "rediclaim.couponbackend.*"
