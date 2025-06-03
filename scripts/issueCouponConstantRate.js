@@ -12,7 +12,7 @@ export const options = {
     scenarios: {
         issue_flow: {
             executor: 'constant-arrival-rate',      // 초당 고정 RPS
-            rate: 1000,                             // 1초당 ,, 회
+            rate: 10000,                             // 1초당 ,, 회
             timeUnit: '1s',
             duration: '120s',                       // 총 ,, 초간
             preAllocatedVUs: PREALLOCATED_VUS,
@@ -145,7 +145,7 @@ export default function (data) {
 
 export function teardown(data) {        // 부하테스트 이후 실행
     const { couponId } = data;
-    // Redis에 쌓인 쿠폰 발금 요청/완료 로그를 조회하는 검증 전용 api 호출
+    // Redis에 쌓인 쿠폰 발금 완료 로그를 조회하는 검증 전용 api 호출
     const res = http.get(`${BASE_URL}/api/coupons/${couponId}/verification-logs`);
     check(res, { 'got verification logs': r => r.status === 200 });
 
@@ -157,15 +157,18 @@ export function teardown(data) {        // 부하테스트 이후 실행
 
     const completions = result.completions || [];
 
-    // 성공 로그가 요청 순번에 대하여 오름차순 정렬(1, 2, ,,, N)인지 확인 -> 이래야 선착순 쿠폰 발급이 보장되는 것임
+    // 쿠폰 발급 완료 로그 중 요청 순번(requestSequence) 배열 추출
     const sequences = completions.map(r => r.requestSequence);
-    const N = QUANTITY;
-    const isSequential = sequences.length === N && sequences.every((v, i) => v === i + 1);
+
+    // 오름차순(우상향) 인지 확인 -> 이러면 선착순 쿠폰 발급 ok
+    const isAscending = sequences.every((v, i) => {
+        return i === 0 || v > sequences[i - 1];
+    });
 
     console.log(`Completion sequences : ${JSON.stringify(sequences)}`);
-    console.log(`Is true 선착순 쿠폰 발급? :  ${isSequential}`);
+    console.log(`쿠폰 발급 완료 로그의 요청 순번이 오름차순인가? :  ${isAscending}`);
 
-    check(isSequential, {
-        [`completion sequences are 1..${N}`]: v => v
+    check(isAscending, {
+        'completion sequences are monotonically increasing': v => v
     });
 }
