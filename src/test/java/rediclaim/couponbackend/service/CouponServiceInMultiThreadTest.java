@@ -6,8 +6,9 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.kafka.test.context.EmbeddedKafka;
 import org.springframework.test.context.ActiveProfiles;
-import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.test.context.TestPropertySource;
 import rediclaim.couponbackend.domain.Coupon;
 import rediclaim.couponbackend.domain.User;
 import rediclaim.couponbackend.repository.CouponRepository;
@@ -23,6 +24,11 @@ import static rediclaim.couponbackend.domain.UserType.*;
 
 @SpringBootTest
 @ActiveProfiles("test")
+@EmbeddedKafka
+@TestPropertySource(properties = {
+        // spring.embedded.kafka.brokers 에서 자동으로 생성된 브로커 주소를 사용하도록 오버라이드
+        "spring.kafka.bootstrap-servers=${spring.embedded.kafka.brokers}"
+})
 class CouponServiceInMultiThreadTest {
 
     @Autowired
@@ -88,6 +94,9 @@ class CouponServiceInMultiThreadTest {
         // 모든 task가 완료될 때까지 메인 스레드는 대기
         latch.await();
         executor.shutdown();
+
+        // consumer가 DB i/o 작업을 마칠때까지 잠깐 wait
+        Thread.sleep(1000);
 
         //then
         // 최종 쿠폰 재고 상태 확인
