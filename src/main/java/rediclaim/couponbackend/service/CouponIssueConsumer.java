@@ -3,7 +3,6 @@ package rediclaim.couponbackend.service;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,9 +23,6 @@ import static rediclaim.couponbackend.exception.ExceptionResponseStatus.USER_NOT
 @Slf4j
 public class CouponIssueConsumer {
 
-    private static final String STOCK_KEY_PREFIX = "STOCK_";
-
-    private final RedisTemplate<String, String> redisTemplate;
     private final UserCouponRepository userCouponRepository;
     private final UserRepository userRepository;
     private final CouponRepository couponRepository;
@@ -43,8 +39,6 @@ public class CouponIssueConsumer {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new CustomException(USER_NOT_FOUND));
 
-        String stockKey = STOCK_KEY_PREFIX + couponId;
-
         try {
             // UserCoupon save
             userCouponRepository.save(
@@ -54,22 +48,25 @@ public class CouponIssueConsumer {
                             .build()
             );
 
-            // Coupon 재고 update(redis의 쿠폰 재고 정보로 update)
-            String val = redisTemplate.opsForValue().get(stockKey);
-            if (val != null) {
-                int redisCount = Integer.parseInt(val);
-                coupon.setRemainingCount(redisCount);
-                couponRepository.save(coupon);
-            }
-
             log.info("CouponIssueEvent 처리 완료 : userId={}, couponId={}", userId, couponId);
         } catch (DataIntegrityViolationException e) {
-            log.warn("중복 CouponIssueEvent 수신 -> 무시합니다. : userId={}, couponId={}", userId, couponId);
+            if (isDuplicateUserCouponException(e)) {
+                log.warn("중복 CouponIssueEvent 수신 -> 무시합니다. : userId={}, couponId={}", userId, couponId);
+            } else {
+                // 그 외 제약 위반은 재시도 or DLT 로
+                log.error("DataIntegrityViolationException 발생 (unique 제약 아님). 재시도 예정 : userId={}, couponId={}, error={}", userId, couponId, e.getMessage());
+                throw e;
+            }
         } catch (Exception e) {
-            // UserCoupon 중복 save 를 제외한 다른 에러
-            // -> 재시도
-            log.error("CouponIsseuEvent 처리 중 예외 발생 : {}, message={}", e.getClass().getSimpleName(), e.getMessage());
+            log.error("알 수 없는 예외 발생. 재시도 예정 : userId={}, couponId={}, error={}", userId, couponId, e.getMessage());
             throw e;
         }
+    }
+
+    private boolean isDuplicateUserCouponException(DataIntegrityViolationException e) {
+        Throwable cause = e.getCause();
+        return cause != null
+                && cause.getMessage() != null
+                && cause.getMessage().contains("Duplicate entry");      // mysql unique 제약 조건 위반 예외 메시지
     }
 }
