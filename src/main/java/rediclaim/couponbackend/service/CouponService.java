@@ -19,6 +19,7 @@ import rediclaim.couponbackend.repository.CouponRepository;
 import rediclaim.couponbackend.repository.UserRepository;
 
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 import static rediclaim.couponbackend.exception.ExceptionResponseStatus.*;
 
@@ -51,7 +52,7 @@ public class CouponService {
 
     /**
      * 1. 사용자 쿠폰 발급 여부 검사 및 redis 쿠폰 재고 차감
-     * 2. DB I/O 을 위해 event publish
+     * 2. DB I/O 을 위해 event publish (성공/실패 콜백 포함)
      */
     public void issueCoupon(Long userId, Long couponId) {
         String stockKey = STOCK_KEY_PREFIX + couponId;
@@ -65,19 +66,7 @@ public class CouponService {
             throw new CustomException(COUPON_OUT_OF_STOCK);
         }
 
-        CouponIssueEvent event = CouponIssueEvent.builder()
-                .userId(userId)
-                .couponId(couponId)
-                .build();
-
-        Message<CouponIssueEvent> message = MessageBuilder
-                .withPayload(event)
-                .setHeader(KafkaHeaders.TOPIC, "coupons")       // 토픽 설정
-                .setHeader(KafkaHeaders.KEY, couponId.toString())       // 메시지 Key(header)로 couponId 지정
-                .build();
-
-        kafkaTemplate.send(message);
-        log.info("CouponIssueEvent 발행 (헤더 Key=couponId={}): userId={}, couponId={}", couponId, userId, couponId);
+        sendIssueEvent(userId, couponId, stockKey, issuedUsersKey);
     }
 
     /**
@@ -96,6 +85,36 @@ public class CouponService {
             throw new RuntimeException("Failed to execute stock script for key: " + stockKey);
         }
         return result;
+    }
+
+    private void sendIssueEvent(Long userId, Long couponId, String stockKey, String issuedUsersKey) {
+        // 이벤트 및 메시지 생성
+        CouponIssueEvent event = CouponIssueEvent.builder()
+                .userId(userId)
+                .couponId(couponId)
+                .build();
+        Message<CouponIssueEvent> message = MessageBuilder
+                .withPayload(event)
+                .setHeader(KafkaHeaders.TOPIC, "coupons")
+                .setHeader(KafkaHeaders.KEY,   couponId.toString())
+                .build();
+
+        // 비동기 전송 (90초 타임아웃 + 성공/실패 콜백)
+        kafkaTemplate.send(message)
+                .orTimeout(90, TimeUnit.SECONDS)
+                .whenComplete((result, ex) -> {
+                    if (ex != null) {
+                        log.error("Kafka 메시지 전송 실패: userId={}, couponId={}", userId, couponId, ex);
+                        // Redis 보상 처리
+                        redisTemplate.opsForValue().increment(stockKey);
+                        redisTemplate.opsForSet().remove(issuedUsersKey, userId.toString());
+
+                        // TODO: 사용자에게 사과 메시지 전송
+
+                    } else {
+                        log.info("Kafka 메시지 전송 성공: userId={}, couponId={}", userId, couponId);
+                    }
+                });
     }
 
     public ValidCouponsResponse showAllValidCoupons() {
