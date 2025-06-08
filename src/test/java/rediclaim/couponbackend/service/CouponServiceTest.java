@@ -16,9 +16,7 @@ import rediclaim.couponbackend.repository.CouponRepository;
 import rediclaim.couponbackend.repository.UserCouponRepository;
 import rediclaim.couponbackend.repository.UserRepository;
 
-import static java.time.Duration.ofSeconds;
 import static org.assertj.core.api.Assertions.*;
-import static org.awaitility.Awaitility.await;
 import static rediclaim.couponbackend.domain.UserType.CREATOR;
 import static rediclaim.couponbackend.domain.UserType.NORMAL;
 import static rediclaim.couponbackend.exception.ExceptionResponseStatus.*;
@@ -47,6 +45,9 @@ class CouponServiceTest {
     @Autowired
     private RedisTemplate<String, String> redisTemplate;
 
+    @Autowired
+    private CouponStockSyncScheduler couponStockSyncScheduler;
+
     private static final String STOCK_KEY_PREFIX = "STOCK_";
 
     @Test
@@ -63,17 +64,15 @@ class CouponServiceTest {
         //when
         couponService.issueCoupon(user.getId(), coupon.getId());
 
-        //then
-        await().atMost(ofSeconds(5))
-                .pollInterval(ofSeconds(0, 100))
-                .untilAsserted(() -> {
-                    Coupon updatedCoupon = couponRepository.findById(coupon.getId()).orElseThrow();
-                    assertThat(updatedCoupon.getRemainingCount()).isEqualTo(9);
+        couponStockSyncScheduler.syncCouponStock();     // redis 재고와 DB 동기화를 수동으로 실행
 
-                    assertThat(userCouponRepository.findByUserId(user.getId()))
-                            .extracting(uc -> uc.getCoupon().getId())
-                            .containsExactly(coupon.getId());
-                });
+        //then
+        Coupon updatedCoupon = couponRepository.findById(coupon.getId()).orElseThrow();
+        assertThat(updatedCoupon.getRemainingCount()).isEqualTo(9);
+
+        assertThat(userCouponRepository.findByUserId(user.getId()))
+                .extracting(uc -> uc.getCoupon().getId())
+                .containsExactly(coupon.getId());
     }
 
     @Test

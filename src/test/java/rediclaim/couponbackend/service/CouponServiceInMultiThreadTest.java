@@ -20,8 +20,6 @@ import java.util.List;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static java.time.Duration.ofSeconds;
-import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.*;
 import static rediclaim.couponbackend.domain.UserType.*;
 
@@ -48,6 +46,9 @@ class CouponServiceInMultiThreadTest {
 
     @Autowired
     private RedisTemplate<String, String> redisTemplate;
+
+    @Autowired
+    private CouponStockSyncScheduler couponStockSyncScheduler;
 
     private static final String STOCK_KEY_PREFIX = "STOCK_";
 
@@ -98,25 +99,19 @@ class CouponServiceInMultiThreadTest {
         latch.await();
         executor.shutdown();
 
-        // consumer가 DB i/o 작업을 마칠때까지 잠깐 wait
-        Thread.sleep(1000);
+        couponStockSyncScheduler.syncCouponStock();     // redis 재고와 DB 동기화를 수동으로 실행
 
         //then
-        // 최종 쿠폰 재고 상태 확인 -> 최대 5초 동안 100ms 마다 재고가 0이 될 때까지 폴링
-        await().atMost(ofSeconds(5))
-                .pollInterval(ofSeconds(0, 100))
-                .untilAsserted(() -> {
-                    Coupon updatedCoupon = couponRepository.findById(coupon.getId()).orElseThrow();
+        Coupon updatedCoupon = couponRepository.findById(coupon.getId()).orElseThrow();
 
-                    System.out.println("성공한 요청 건수: " + successCount.get());
-                    System.out.println("실패한 요청 건수: " + failCount.get());
-                    System.out.println("남은 쿠폰 재고: " + updatedCoupon.getRemainingCount());
-                    assertAll("쿠폰 발급 통계",
-                            () -> assertEquals(10, successCount.get(), "성공 요청 수는 100이어야 합니다."),
-                            () -> assertEquals(90, failCount.get(), "실패 요청수는 900이어야 합니다."),
-                            () -> assertEquals(0, updatedCoupon.getRemainingCount(), "남은 쿠폰 재고는 0이어야 합니다.")
-                    );
-                });
+        System.out.println("성공한 요청 건수: " + successCount.get());
+        System.out.println("실패한 요청 건수: " + failCount.get());
+        System.out.println("남은 쿠폰 재고: " + updatedCoupon.getRemainingCount());
+        assertAll("쿠폰 발급 통계",
+                () -> assertEquals(10, successCount.get(), "성공 요청 수는 100이어야 합니다."),
+                () -> assertEquals(90, failCount.get(), "실패 요청수는 900이어야 합니다."),
+                () -> assertEquals(0, updatedCoupon.getRemainingCount(), "남은 쿠폰 재고는 0이어야 합니다.")
+        );
     }
 
     private User createUser(String name) {
