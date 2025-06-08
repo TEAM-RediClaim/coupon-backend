@@ -6,8 +6,9 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.kafka.test.context.EmbeddedKafka;
 import org.springframework.test.context.ActiveProfiles;
-import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.test.context.TestPropertySource;
 import rediclaim.couponbackend.domain.Coupon;
 import rediclaim.couponbackend.domain.User;
 import rediclaim.couponbackend.repository.CouponRepository;
@@ -18,11 +19,17 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
+
 import static org.junit.jupiter.api.Assertions.*;
 import static rediclaim.couponbackend.domain.UserType.*;
 
 @SpringBootTest
 @ActiveProfiles("test")
+@EmbeddedKafka
+@TestPropertySource(properties = {
+        // spring.embedded.kafka.brokers 에서 자동으로 생성된 브로커 주소를 사용하도록 오버라이드
+        "spring.kafka.bootstrap-servers=${spring.embedded.kafka.brokers}"
+})
 class CouponServiceInMultiThreadTest {
 
     @Autowired
@@ -39,6 +46,9 @@ class CouponServiceInMultiThreadTest {
 
     @Autowired
     private RedisTemplate<String, String> redisTemplate;
+
+    @Autowired
+    private CouponStockSyncScheduler couponStockSyncScheduler;
 
     private static final String STOCK_KEY_PREFIX = "STOCK_";
 
@@ -89,14 +99,14 @@ class CouponServiceInMultiThreadTest {
         latch.await();
         executor.shutdown();
 
+        couponStockSyncScheduler.syncCouponStock();     // redis 재고와 DB 동기화를 수동으로 실행
+
         //then
-        // 최종 쿠폰 재고 상태 확인
         Coupon updatedCoupon = couponRepository.findById(coupon.getId()).orElseThrow();
 
         System.out.println("성공한 요청 건수: " + successCount.get());
         System.out.println("실패한 요청 건수: " + failCount.get());
         System.out.println("남은 쿠폰 재고: " + updatedCoupon.getRemainingCount());
-
         assertAll("쿠폰 발급 통계",
                 () -> assertEquals(10, successCount.get(), "성공 요청 수는 100이어야 합니다."),
                 () -> assertEquals(90, failCount.get(), "실패 요청수는 900이어야 합니다."),

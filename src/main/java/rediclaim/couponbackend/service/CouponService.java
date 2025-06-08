@@ -2,21 +2,24 @@ package rediclaim.couponbackend.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
+import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.kafka.support.KafkaHeaders;
+import org.springframework.messaging.Message;
+import org.springframework.messaging.support.MessageBuilder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import rediclaim.couponbackend.controller.response.ValidCouponsResponse;
 import rediclaim.couponbackend.controller.response.ValidCoupon;
 import rediclaim.couponbackend.domain.*;
+import rediclaim.couponbackend.domain.event.CouponIssueEvent;
 import rediclaim.couponbackend.exception.CustomException;
 import rediclaim.couponbackend.repository.CouponRepository;
-import rediclaim.couponbackend.repository.UserCouponRepository;
 import rediclaim.couponbackend.repository.UserRepository;
 
-import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 import static rediclaim.couponbackend.exception.ExceptionResponseStatus.*;
 
@@ -26,84 +29,92 @@ import static rediclaim.couponbackend.exception.ExceptionResponseStatus.*;
 public class CouponService {
 
     private static final String STOCK_KEY_PREFIX = "STOCK_";
+    private static final String ISSUED_USERS_KEY_PREFIX = "ISSUED_USERS_";
 
     private final RedisTemplate<String, String> redisTemplate;
-    private final UserCouponRepository userCouponRepository;
     private final CouponRepository couponRepository;
     private final UserRepository userRepository;
+    private final KafkaTemplate<String, Object> kafkaTemplate;
 
-    // Lua script for atomic DECR
+    // Lua script for user duplicate check & atomic DECR
     private static final String ATOMIC_DECR_SCRIPT =
-            "local stock = redis.call('GET', KEYS[1])\n" +
-                    "if tonumber(stock) > 0 then\n" +
-                    "  return redis.call('DECR', KEYS[1])\n" +
+            "local userId = ARGV[1]\n" +
+                    "local stock = redis.call('GET', KEYS[1])\n" +
+                    "if redis.call('SISMEMBER', KEYS[2], userId) == 1 then\n" +
+                    "  return -2\n" +                // 이미 발급된 사용자
                     "end\n" +
-                    "return -1";
+                    "if tonumber(stock) <= 0 then\n" +
+                    "  return -1\n" +                // 재고 부족
+                    "end\n" +
+                    "redis.call('DECR', KEYS[1])\n" +
+                    "redis.call('SADD', KEYS[2], userId)\n" +  // 발급된 user set에 추가
+                    "return redis.call('GET', KEYS[1])";
 
     /**
-     * 유저가 발급한 적이 없는 쿠폰이고, 재고가 있을 경우 해당 유저에게 쿠폰을 발급해준다
-     * transactional 지우기
+     * 1. 사용자 쿠폰 발급 여부 검사 및 redis 쿠폰 재고 차감
+     * 2. DB I/O 을 위해 event publish (성공/실패 콜백 포함)
      */
     public void issueCoupon(Long userId, Long couponId) {
-        Coupon coupon = couponRepository.findById(couponId).orElseThrow(() -> new CustomException(COUPON_NOT_FOUND));
-        User user = userRepository.findById(userId).orElseThrow(() -> new CustomException(USER_NOT_FOUND));
-
         String stockKey = STOCK_KEY_PREFIX + couponId;
-        Long remaining = allocateStockAtomically(stockKey);     // 쿠폰 재고 감소
-        if (remaining < 0) {        // 해당 쿠폰 재고 없음
+        String issuedUsersKey = ISSUED_USERS_KEY_PREFIX + couponId;
+
+        Long remaining = allocateStockAtomically(stockKey, issuedUsersKey, userId);
+        if (remaining == -2) {
+            throw new CustomException(USER_ALREADY_HAS_COUPON);
+        }
+        if (remaining == -1) {
             throw new CustomException(COUPON_OUT_OF_STOCK);
         }
 
-        try {
-            // UserCoupon save
-            userCouponRepository.save(UserCoupon.builder()
-                    .user(user)
-                    .coupon(coupon)
-                    .build());
-
-            // Coupon update
-            syncCouponCountFromRedis(coupon, stockKey);
-        } catch (Exception e) {
-            redisTemplate.opsForValue().increment(stockKey);        // 쿠폰 재고 원복
-            syncCouponCountFromRedis(coupon, stockKey);
-
-            if (e instanceof DataIntegrityViolationException) {
-                throw new CustomException(USER_ALREADY_HAS_COUPON);
-            } else {
-                log.error(e.getMessage());
-                throw new CustomException(DATABASE_ERROR);
-            }
-        }
+        sendIssueEvent(userId, couponId, stockKey, issuedUsersKey);
     }
 
     /**
-     * Redis에서 Lua 스크립트로 DECR/INCR을 원자화하여 재고를 할당
-     * @return 남은 재고(>=0) 또는 -1(재고 부족)
+     * @return
+     * -2 : 이미 해당 쿠폰을 발급한 유저
+     * -1 : 쿠폰 재고 부족
+     * 0 이상 : 쿠폰 발급 성공 -> 쿠폰 재고값 반환
      */
-    private Long allocateStockAtomically(String key) {
+    private Long allocateStockAtomically(String stockKey, String issuedUsersKey, Long userId) {
         DefaultRedisScript<Long> script = new DefaultRedisScript<>();
         script.setScriptText(ATOMIC_DECR_SCRIPT);
         script.setResultType(Long.class);
-        Long result = redisTemplate.execute(script, Collections.singletonList(key));
+
+        Long result = redisTemplate.execute(script, List.of(stockKey, issuedUsersKey), userId.toString());
         if (result == null) {
-            throw new RuntimeException("Failed to execute stock script for key: " + key);
+            throw new RuntimeException("Failed to execute stock script for key: " + stockKey);
         }
         return result;
     }
 
-    private void syncCouponCountFromRedis(Coupon coupon, String key) {
-        // redis에 있는 쿠폰 재고 정보가 최신 정보이다 -> Coupon의 재고 정보는 redis의 값으로 update 해주면 된다
-        String val = redisTemplate.opsForValue().get(key);
-        if (val != null) {
-            try {
-                int redisCount = Integer.parseInt(val);
-                coupon.setRemainingCount(redisCount);
-                couponRepository.save(coupon);
-            } catch (NumberFormatException e) {
-                log.error("unable to parse redis stock value : {}", val);
-                throw e;
-            }
-        }
+    private void sendIssueEvent(Long userId, Long couponId, String stockKey, String issuedUsersKey) {
+        // 이벤트 및 메시지 생성
+        CouponIssueEvent event = CouponIssueEvent.builder()
+                .userId(userId)
+                .couponId(couponId)
+                .build();
+        Message<CouponIssueEvent> message = MessageBuilder
+                .withPayload(event)
+                .setHeader(KafkaHeaders.TOPIC, "coupons")
+                .setHeader(KafkaHeaders.KEY,   couponId.toString())
+                .build();
+
+        // 비동기 전송 (90초 타임아웃 + 성공/실패 콜백)
+        kafkaTemplate.send(message)
+                .orTimeout(90, TimeUnit.SECONDS)
+                .whenComplete((result, ex) -> {
+                    if (ex != null) {
+                        log.error("Kafka 메시지 전송 실패: userId={}, couponId={}", userId, couponId, ex);
+                        // Redis 보상 처리
+                        redisTemplate.opsForValue().increment(stockKey);
+                        redisTemplate.opsForSet().remove(issuedUsersKey, userId.toString());
+
+                        // TODO: 사용자에게 사과 메시지 전송
+
+                    } else {
+                        log.info("Kafka 메시지 전송 성공: userId={}, couponId={}", userId, couponId);
+                    }
+                });
     }
 
     public ValidCouponsResponse showAllValidCoupons() {
@@ -131,6 +142,9 @@ public class CouponService {
 
         String stockKey = STOCK_KEY_PREFIX + saved.getId();
         redisTemplate.opsForValue().set(stockKey, String.valueOf(quantity));
+
+        String issuedUsersKey = ISSUED_USERS_KEY_PREFIX + saved.getId();
+        redisTemplate.delete(issuedUsersKey);       // 이전에 해당 쿠폰을 발급받은 유저들 정보는 전부 삭제
 
         return saved.getId();
     }

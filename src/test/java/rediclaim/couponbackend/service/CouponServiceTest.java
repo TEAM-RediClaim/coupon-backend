@@ -5,7 +5,9 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.kafka.test.context.EmbeddedKafka;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.transaction.annotation.Transactional;
 import rediclaim.couponbackend.controller.response.ValidCouponsResponse;
 import rediclaim.couponbackend.domain.*;
@@ -21,7 +23,11 @@ import static rediclaim.couponbackend.exception.ExceptionResponseStatus.*;
 
 @SpringBootTest
 @ActiveProfiles("test")
-@Transactional(readOnly = true)
+@EmbeddedKafka
+@TestPropertySource(properties = {
+        // spring.embedded.kafka.brokers 에서 자동으로 생성된 브로커 주소를 사용하도록 오버라이드
+        "spring.kafka.bootstrap-servers=${spring.embedded.kafka.brokers}"
+})
 class CouponServiceTest {
 
     @Autowired
@@ -39,11 +45,13 @@ class CouponServiceTest {
     @Autowired
     private RedisTemplate<String, String> redisTemplate;
 
+    @Autowired
+    private CouponStockSyncScheduler couponStockSyncScheduler;
+
     private static final String STOCK_KEY_PREFIX = "STOCK_";
 
     @Test
     @DisplayName("유저는 이전에 발급한 적이 없고, 재고가 있는 쿠폰을 발급받을 수 있다.")
-    @Transactional
     void issue_coupon_success() throws Exception {
         //given
         User creator = userRepository.save(createCreator("쿠폰생성자1"));
@@ -56,16 +64,19 @@ class CouponServiceTest {
         //when
         couponService.issueCoupon(user.getId(), coupon.getId());
 
-        //then
-        assertThat(coupon.getRemainingCount()).isEqualTo(9);
+        couponStockSyncScheduler.syncCouponStock();     // redis 재고와 DB 동기화를 수동으로 실행
 
-        UserCoupons userCoupons = UserCoupons.of(userCouponRepository.findByUserId(user.getId()));
-        assertThat(userCoupons.hasCoupon(coupon.getId())).isTrue();
+        //then
+        Coupon updatedCoupon = couponRepository.findById(coupon.getId()).orElseThrow();
+        assertThat(updatedCoupon.getRemainingCount()).isEqualTo(9);
+
+        assertThat(userCouponRepository.findByUserId(user.getId()))
+                .extracting(uc -> uc.getCoupon().getId())
+                .containsExactly(coupon.getId());
     }
 
     @Test
     @DisplayName("유저는 이미 발급받은 쿠폰을 재발급 받을 수 없다.")
-    @Transactional
     void can_not_issue_coupon_for_already_issued() throws Exception {
         //given
         User creator = userRepository.save(createCreator("쿠폰생성자1"));
@@ -85,7 +96,6 @@ class CouponServiceTest {
 
     @Test
     @DisplayName("유저는 재고가 없는 쿠폰을 발급받을 수 없다.")
-    @Transactional
     void can_not_issue_out_of_stock_coupon() throws Exception {
         //given
         User creator = userRepository.save(createCreator("쿠폰생성자1"));
