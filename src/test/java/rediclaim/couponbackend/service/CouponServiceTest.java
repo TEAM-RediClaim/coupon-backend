@@ -16,7 +16,9 @@ import rediclaim.couponbackend.repository.CouponRepository;
 import rediclaim.couponbackend.repository.UserCouponRepository;
 import rediclaim.couponbackend.repository.UserRepository;
 
+import static java.time.Duration.ofSeconds;
 import static org.assertj.core.api.Assertions.*;
+import static org.awaitility.Awaitility.await;
 import static rediclaim.couponbackend.domain.UserType.CREATOR;
 import static rediclaim.couponbackend.domain.UserType.NORMAL;
 import static rediclaim.couponbackend.exception.ExceptionResponseStatus.*;
@@ -62,12 +64,16 @@ class CouponServiceTest {
         couponService.issueCoupon(user.getId(), coupon.getId());
 
         //then
-        Thread.sleep(1000);     // 비동기적으로 DB i/o 가 발생하므로 잠깐 wait
-        Coupon updatedCoupon = couponRepository.findById(coupon.getId()).orElseThrow();
-        assertThat(updatedCoupon.getRemainingCount()).isEqualTo(9);
+        await().atMost(ofSeconds(5))
+                .pollInterval(ofSeconds(0, 100))
+                .untilAsserted(() -> {
+                    Coupon updatedCoupon = couponRepository.findById(coupon.getId()).orElseThrow();
+                    assertThat(updatedCoupon.getRemainingCount()).isEqualTo(9);
 
-//        UserCoupons userCoupons = UserCoupons.of(userCouponRepository.findByUserId(user.getId()));
-//        assertThat(userCoupons.hasCoupon(coupon.getId())).isTrue();
+                    assertThat(userCouponRepository.findByUserId(user.getId()))
+                            .extracting(uc -> uc.getCoupon().getId())
+                            .containsExactly(coupon.getId());
+                });
     }
 
     @Test
