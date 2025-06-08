@@ -4,15 +4,16 @@ import { Counter } from 'k6/metrics';
 import { randomItem } from 'https://jslib.k6.io/k6-utils/1.2.0/index.js';
 
 const PREALLOCATED_VUS = 5000;      // 사전 예약된 VU 수
-const USER_COUNT= 50000;             // 생성할 유저 수
-const QUANTITY = 3000;               // 생성할 쿠폰의 수량
+const USER_COUNT= 100000;             // 생성할 유저 수
+const QUANTITY = 10000;               // 생성할 쿠폰의 수량
 
 export const options = {
     setupTimeout: '180s',       // setup 메서드가 실행되는 최대 대기 시간
+    teardownTimeout: '120s',    // teardown 메서드 timeout
     scenarios: {
         issue_flow: {
             executor: 'constant-arrival-rate',      // 초당 고정 RPS
-            rate: 10000,                             // 1초당 ,, 회
+            rate: 15000,                             // 1초당 ,, 회
             timeUnit: '1s',
             duration: '120s',                       // 총 ,, 초간
             preAllocatedVUs: PREALLOCATED_VUS,
@@ -21,7 +22,7 @@ export const options = {
     },
     thresholds: {
         // 비즈니스 요구사항
-        'coupon_success_count':      ['count==3000'],  // 쿠폰 수량만큼만 성공
+        'coupon_success_count':      ['count==10000'],  // 쿠폰 수량만큼만 성공
 
         // HTTP SLA (원하면 추가)
         // http_req_failed: ['rate<0.01'],
@@ -29,6 +30,7 @@ export const options = {
     },
 };
 
+// const BASE_URL = 'http://14.52.211.223:30002';
 const BASE_URL = 'http://localhost:8080';
 const JSON_HEADERS = { 'Content-Type': 'application/json' };
 
@@ -43,7 +45,7 @@ export function setup() {
     const userIds = [];
 
     // 1) 일반 유저 생성 (배치 요청)
-    const batchSize = 2000;
+    const batchSize = 5000;
     let batchRequests = [];
     for (let i = 1; i <= USER_COUNT; i++) {
         batchRequests.push([
