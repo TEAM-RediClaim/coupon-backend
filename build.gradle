@@ -47,16 +47,9 @@ dependencies {
     // MySQL
     runtimeOnly 'com.mysql:mysql-connector-j'
 
-    // retry
-    implementation 'org.springframework.boot:spring-boot-starter-aop'
-    implementation 'org.springframework.retry:spring-retry'
-
     // redis
     implementation 'org.springframework.boot:spring-boot-starter-data-redis'
     testImplementation('com.github.codemonstur:embedded-redis:1.4.0')
-
-    // awaitility -> 비동기 코드의 타이밍 테스트
-    testImplementation 'org.awaitility:awaitility:4.2.2'
 }
 
 tasks.named('test') {
