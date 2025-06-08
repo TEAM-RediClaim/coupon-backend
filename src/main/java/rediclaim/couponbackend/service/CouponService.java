@@ -72,7 +72,7 @@ public class CouponService {
 
         Message<CouponIssueEvent> message = MessageBuilder
                 .withPayload(event)
-                .setHeader(KafkaHeaders.TOPIC, "coupon-issue-events")       // 토픽 설정
+                .setHeader(KafkaHeaders.TOPIC, "coupons")       // 토픽 설정
                 .setHeader(KafkaHeaders.KEY, couponId.toString())       // 메시지 Key(header)로 couponId 지정
                 .build();
 

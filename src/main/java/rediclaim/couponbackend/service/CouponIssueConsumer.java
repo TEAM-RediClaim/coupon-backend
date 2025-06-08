@@ -31,7 +31,7 @@ public class CouponIssueConsumer {
     private final UserRepository userRepository;
     private final CouponRepository couponRepository;
 
-    @KafkaListener(topics = "coupon-issue-events")
+    @KafkaListener(topics = "coupons")
     @Transactional
     public void handleCouponIssue(CouponIssueEvent event) {
         Long userId = event.getUserId();
