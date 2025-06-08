@@ -5,10 +5,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
 import rediclaim.couponbackend.domain.Coupon;
 import rediclaim.couponbackend.repository.CouponRepository;
-
-import java.util.List;
 
 @Component
 @RequiredArgsConstructor
@@ -20,28 +19,43 @@ public class CouponStockSyncScheduler {
     private final RedisTemplate<String, String> redisTemplate;
     private final CouponRepository couponRepository;
 
+    /**
+     * 5분마다 전체 쿠폰 재고 동기화 처리
+     **/
     @Scheduled(fixedRate = 5 * 60 * 1000)
     public void syncCouponStock() {
-        List<Coupon> coupons = couponRepository.findAll();
-        for (Coupon coupon : coupons) {
-            String stockKey = STOCK_KEY_PREFIX + coupon.getId();
+        couponRepository.findAll().forEach(this::syncStockForCoupon);
+    }
+
+    /**
+     * 개별 쿠폰에 대해 Redis → DB 동기화
+     **/
+    private void syncStockForCoupon(Coupon coupon) {
+        String stockKey = STOCK_KEY_PREFIX + coupon.getId();
+
+        try {
             String value = redisTemplate.opsForValue().get(stockKey);
-
-            // redis에 키가 없으면 continue
-            if (value == null) continue;
-
-            try {
-                int redisCount = Integer.parseInt(value);
-                int dbCount = coupon.getRemainingCount();
-
-                if (redisCount != dbCount) {
-                    coupon.setRemainingCount(redisCount);
-                    couponRepository.save(coupon);
-                    log.info("쿠폰 재고 동기화 : couponId={}, dbCount={} -> redisCount={}", coupon.getId(), dbCount, redisCount);
-                }
-            } catch (NumberFormatException e) {
-                log.warn("redis 재고 값 파싱 실패 : stockKey={}, value={}", stockKey, value);
+            if (!StringUtils.hasText(value)) {
+                log.debug("Redis에 stockKey가 없음: {}", stockKey);
+                return;
             }
+
+            int redisCount = Integer.parseInt(value);
+            updateCouponStock(coupon, redisCount);
+        } catch (Exception e) {
+            log.error("syncCouponStock 예외 발생: couponId={}, stockKey={}, errorMessage={}", coupon.getId(), stockKey, e.getMessage(), e);
+        }
+    }
+
+    /**
+     * DB상의 Coupon 재고와 다를 경우에만 업데이트
+     **/
+    private void updateCouponStock(Coupon coupon, int redisCount) {
+        int dbCount = coupon.getRemainingCount();
+        if (redisCount != dbCount) {
+            coupon.setRemainingCount(redisCount);
+            couponRepository.save(coupon);
+            log.info("쿠폰 재고 동기화 완료: couponId={}, dbCount={} -> redisCount={}", coupon.getId(), dbCount, redisCount);
         }
     }
 }
