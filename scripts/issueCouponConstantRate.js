@@ -4,8 +4,8 @@ import { Counter } from 'k6/metrics';
 import { randomItem } from 'https://jslib.k6.io/k6-utils/1.2.0/index.js';
 
 const PREALLOCATED_VUS = 5000;      // 사전 예약된 VU 수
-const USER_COUNT= 100000;             // 생성할 유저 수
-const QUANTITY = 10000;               // 생성할 쿠폰의 수량
+const USER_COUNT= 10000;             // 생성할 유저 수
+const QUANTITY = 1000;               // 생성할 쿠폰의 수량
 
 export const options = {
     setupTimeout: '180s',       // setup 메서드가 실행되는 최대 대기 시간
@@ -13,7 +13,7 @@ export const options = {
     scenarios: {
         issue_flow: {
             executor: 'constant-arrival-rate',      // 초당 고정 RPS
-            rate: 15000,                             // 1초당 ,, 회
+            rate: 10000,                             // 1초당 ,, 회
             timeUnit: '1s',
             duration: '120s',                       // 총 ,, 초간
             preAllocatedVUs: PREALLOCATED_VUS,
@@ -22,9 +22,8 @@ export const options = {
     },
     thresholds: {
         // 비즈니스 요구사항
-        'coupon_success_count':      ['count==10000'],  // 쿠폰 수량만큼만 성공
+        'coupon_success_count':      ['count==1000'],  // 쿠폰 수량만큼만 성공
 
-        // HTTP SLA (원하면 추가)
         // http_req_failed: ['rate<0.01'],
         // http_req_duration: ['p(95)<500'],
     },
@@ -41,11 +40,14 @@ export let outOfStockErrorCount = new Counter('out_of_stock_error_count');
 export let serverErrorCount = new Counter('server_error_count');
 export let networkErrorCount = new Counter('network_error_count');
 
+/**
+ * user를 생성하는 ver 의 setup 메서드
+ */
 export function setup() {
     const userIds = [];
 
     // 1) 일반 유저 생성 (배치 요청)
-    const batchSize = 5000;
+    const batchSize = 500;
     let batchRequests = [];
     for (let i = 1; i <= USER_COUNT; i++) {
         batchRequests.push([
@@ -98,6 +100,34 @@ export function setup() {
     return { userIds, couponId };
 }
 
+/**
+ * DB에 미리 저장한 user를 사용하는 ver 의 setup 메서드
+ */
+// export function setup() {
+//     // 1) 기존 DB에 저장된 user ID 범위 지정 (10000~20000)
+//     const userIds = [];
+//     for (let id = 100000; id <= 200000; id++) {
+//         userIds.push(id);
+//     }
+//
+//     const creatorId = 200001;
+//
+//     // 2) 쿠폰 생성
+//     const couponRes = http.post(
+//         `${BASE_URL}/api/coupons`,
+//         JSON.stringify({
+//             creatorId:  creatorId,
+//             quantity:   QUANTITY,
+//             couponName: 'load-test-coupon',
+//         }),
+//         { headers: JSON_HEADERS }
+//     );
+//     check(couponRes, { 'create coupon OK': r => r.status === 200 });
+//     const couponId = couponRes.json().result.couponId;
+//
+//     return { userIds, couponId };
+// }
+
 
 export default function (data) {
     const { userIds, couponId } = data;
@@ -145,32 +175,22 @@ export default function (data) {
     }
 }
 
-export function teardown(data) {        // 부하테스트 이후 실행
+export function teardown(data) {
     const { couponId } = data;
-    // Redis에 쌓인 쿠폰 발금 완료 로그를 조회하는 검증 전용 api 호출
-    const res = http.get(`${BASE_URL}/api/coupons/${couponId}/verification-logs`);
-    check(res, { 'got verification logs': r => r.status === 200 });
 
-    const body = res.json();
-    const result = body.result;
-    if (!result) {
-        throw new Error('verification-logs API에 result가 없습니다');
+    // 1) 검증 전용 API 호출
+    const res = http.get(`${BASE_URL}/api/coupons/${couponId}/verification-logs`);
+    check(res, { 'verification-logs 호출 성공': r => r.status === 200 });
+
+    // 2) 응답 JSON 파싱
+    const { result } = res.json();
+    if (result.firstComeFirstServe === undefined) {
+        throw new Error('verification-logs API에 firstComeFirstServe 필드가 없습니다');
     }
 
-    const completions = result.completions || [];
-
-    // 쿠폰 발급 완료 로그 중 요청 순번(requestSequence) 배열 추출
-    const sequences = completions.map(r => r.requestSequence);
-
-    // 오름차순(우상향) 인지 확인 -> 이러면 선착순 쿠폰 발급 ok
-    const isAscending = sequences.every((v, i) => {
-        return i === 0 || v > sequences[i - 1];
-    });
-
-    console.log(`Completion sequences : ${JSON.stringify(sequences)}`);
-    console.log(`쿠폰 발급 완료 로그의 요청 순번이 오름차순인가? :  ${isAscending}`);
-
-    check(isAscending, {
-        'completion sequences are monotonically increasing': v => v
+    // 3) 선착순 검증 결과 출력 및 체크
+    console.log(`선착순 쿠폰 발급 보장 여부: ${result.firstComeFirstServe}`);
+    check(result.firstComeFirstServe, {
+        '선착순 쿠폰 발급이 보장되었는가': v => v === true
     });
 }

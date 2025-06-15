@@ -7,17 +7,14 @@ import org.springframework.web.bind.annotation.*;
 import rediclaim.couponbackend.controller.request.CreateCouponRequest;
 import rediclaim.couponbackend.controller.request.IssueCouponRequest;
 import rediclaim.couponbackend.controller.response.CreateCouponResponse;
-import rediclaim.couponbackend.controller.response.LogRecord;
 import rediclaim.couponbackend.controller.response.ValidCouponsResponse;
 import rediclaim.couponbackend.controller.response.VerificationLogsResponse;
 import rediclaim.couponbackend.exception.CustomException;
 import rediclaim.couponbackend.global.common.BaseResponse;
 import rediclaim.couponbackend.service.CouponService;
-import rediclaim.couponbackend.service.OrderVerificationService;
+import rediclaim.couponbackend.service.CouponIssueLogService;
 
-import java.util.List;
-
-import static rediclaim.couponbackend.exception.ExceptionResponseStatus.REQUEST_VALIDATION_FAILED;
+import static rediclaim.couponbackend.exception.ExceptionResponseStatus.*;
 import static rediclaim.couponbackend.global.util.BindingResultUtils.getErrorMessage;
 
 @RestController
@@ -25,7 +22,7 @@ import static rediclaim.couponbackend.global.util.BindingResultUtils.getErrorMes
 public class CouponController {
 
     private final CouponService couponService;
-    private final OrderVerificationService orderVerificationService;
+    private final CouponIssueLogService couponIssueLogService;
 
     @PostMapping("/api/coupons/{couponId}")
     public BaseResponse<Void> issueCoupon(@Valid @RequestBody IssueCouponRequest request, @PathVariable Long couponId, BindingResult bindingResult) {
@@ -33,9 +30,7 @@ public class CouponController {
             throw new CustomException(REQUEST_VALIDATION_FAILED, getErrorMessage(bindingResult));
         }
 
-        Long requestSequence = orderVerificationService.assignRequestOrder(request.getUserId(), couponId);
         couponService.issueCoupon(request.getUserId(), couponId);
-        orderVerificationService.recordCompletion(request.getUserId(), couponId, requestSequence);
 
         return BaseResponse.ok(null);
     }
@@ -59,10 +54,8 @@ public class CouponController {
 
     @GetMapping("/api/coupons/{couponId}/verification-logs")
     public BaseResponse<VerificationLogsResponse> getVerificationLogs(@PathVariable Long couponId) {
-        List<LogRecord> completionLogs = orderVerificationService.getCompletionLogs(couponId);
-
         return BaseResponse.ok(VerificationLogsResponse.builder()
-                .completions(completionLogs)
+                .firstComeFirstServe(couponIssueLogService.verifyFirstComeFirstServe(couponId))
                 .build());
     }
 }
