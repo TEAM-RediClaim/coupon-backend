@@ -4,8 +4,8 @@ import { Counter } from 'k6/metrics';
 import { randomItem } from 'https://jslib.k6.io/k6-utils/1.2.0/index.js';
 
 const PREALLOCATED_VUS = 5000;      // 사전 예약된 VU 수
-const USER_COUNT= 10000;             // 생성할 유저 수
-const QUANTITY = 1000;               // 생성할 쿠폰의 수량
+const USER_COUNT= 100000;             // 생성할 유저 수
+const QUANTITY = 10000;               // 생성할 쿠폰의 수량
 
 export const options = {
     setupTimeout: '180s',       // setup 메서드가 실행되는 최대 대기 시간
@@ -13,16 +13,16 @@ export const options = {
     scenarios: {
         issue_flow: {
             executor: 'constant-arrival-rate',      // 초당 고정 RPS
-            rate: 10000,                             // 1초당 ,, 회
+            rate: 10_000,                             // 1초당 ,, 회
             timeUnit: '1s',
             duration: '120s',                       // 총 ,, 초간
             preAllocatedVUs: PREALLOCATED_VUS,
-            maxVUs: 20000,
+            maxVUs: 80000,
         },
     },
     thresholds: {
         // 비즈니스 요구사항
-        'coupon_success_count':      ['count==1000'],  // 쿠폰 수량만큼만 성공
+        'coupon_success_count':      ['count==10000'],  // 쿠폰 수량만큼만 성공
 
         // http_req_failed: ['rate<0.01'],
         // http_req_duration: ['p(95)<500'],
@@ -40,79 +40,51 @@ export let outOfStockErrorCount = new Counter('out_of_stock_error_count');
 export let serverErrorCount = new Counter('server_error_count');
 export let networkErrorCount = new Counter('network_error_count');
 
-/**
- * user를 생성하는 ver 의 setup 메서드
- */
-export function setup() {
-    const userIds = [];
-
-    // 1) 일반 유저 생성 (배치 요청)
-    const batchSize = 500;
-    let batchRequests = [];
-    for (let i = 1; i <= USER_COUNT; i++) {
-        batchRequests.push([
-            'POST',
-            `${BASE_URL}/api/users`,
-            JSON.stringify({ name: `user_${i}` }),
-            { headers: JSON_HEADERS }
-        ]);
-
-        if (batchRequests.length === batchSize) {
-            const responses = http.batch(batchRequests);
-            responses.forEach(r => {
-                check(r, { 'create user OK': res => res.status === 200 });
-                userIds.push(r.json().result.userId);
-            });
-            batchRequests = [];
-        }
-    }
-    // 남은 요청 처리
-    if (batchRequests.length) {
-        const responses = http.batch(batchRequests);
-        responses.forEach(r => {
-            check(r, { 'create user OK': res => res.status === 200 });
-            userIds.push(r.json().result.userId);
-        });
-    }
-
-    // 2) 쿠폰 생성자 생성
-    const creatorRes = http.post(
-        `${BASE_URL}/api/creators`,
-        JSON.stringify({ name: 'creator_1' }),
-        { headers: JSON_HEADERS }
-    );
-    check(creatorRes, { 'create creator OK': r => r.status === 200 });
-    const creatorId = creatorRes.json().result.creatorId;
-
-    // 3) 쿠폰 1개 생성
-    const couponRes = http.post(
-        `${BASE_URL}/api/coupons`,
-        JSON.stringify({
-            creatorId:  creatorId,
-            quantity:   QUANTITY,
-            couponName: 'load-test-coupon',
-        }),
-        { headers: JSON_HEADERS }
-    );
-    check(couponRes, { 'create coupon OK': r => r.status === 200 });
-    const couponId = couponRes.json().result.couponId;
-
-    return { userIds, couponId };
-}
-
-/**
- * DB에 미리 저장한 user를 사용하는 ver 의 setup 메서드
- */
+// /**
+//  * user를 생성하는 ver 의 setup 메서드
+//  */
 // export function setup() {
-//     // 1) 기존 DB에 저장된 user ID 범위 지정 (10000~20000)
 //     const userIds = [];
-//     for (let id = 100000; id <= 200000; id++) {
-//         userIds.push(id);
+//
+//     // 1) 일반 유저 생성 (배치 요청)
+//     const batchSize = 100;
+//     let batchRequests = [];
+//     for (let i = 1; i <= USER_COUNT; i++) {
+//         batchRequests.push([
+//             'POST',
+//             `${BASE_URL}/api/users`,
+//             JSON.stringify({ name: `user_${i}` }),
+//             { headers: JSON_HEADERS }
+//         ]);
+//
+//         if (batchRequests.length === batchSize) {
+//             const responses = http.batch(batchRequests);
+//             responses.forEach(r => {
+//                 check(r, { 'create user OK': res => res.status === 200 });
+//                 userIds.push(r.json().result.userId);
+//             });
+//             batchRequests = [];
+//         }
+//     }
+//     // 남은 요청 처리
+//     if (batchRequests.length) {
+//         const responses = http.batch(batchRequests);
+//         responses.forEach(r => {
+//             check(r, { 'create user OK': res => res.status === 200 });
+//             userIds.push(r.json().result.userId);
+//         });
 //     }
 //
-//     const creatorId = 200001;
+//     // 2) 쿠폰 생성자 생성
+//     const creatorRes = http.post(
+//         `${BASE_URL}/api/creators`,
+//         JSON.stringify({ name: 'creator_1' }),
+//         { headers: JSON_HEADERS }
+//     );
+//     check(creatorRes, { 'create creator OK': r => r.status === 200 });
+//     const creatorId = creatorRes.json().result.creatorId;
 //
-//     // 2) 쿠폰 생성
+//     // 3) 쿠폰 1개 생성
 //     const couponRes = http.post(
 //         `${BASE_URL}/api/coupons`,
 //         JSON.stringify({
@@ -127,6 +99,34 @@ export function setup() {
 //
 //     return { userIds, couponId };
 // }
+
+/**
+ * DB에 미리 저장한 user를 사용하는 ver 의 setup 메서드
+ */
+export function setup() {
+    // 1) 기존 DB에 저장된 user ID 범위 지정
+    const userIds = [];
+    for (let id = 1; id <= USER_COUNT; id++) {
+        userIds.push(id);
+    }
+
+    const creatorId = USER_COUNT + 1;
+
+    // 2) 쿠폰 생성
+    const couponRes = http.post(
+        `${BASE_URL}/api/coupons`,
+        JSON.stringify({
+            creatorId:  creatorId,
+            quantity:   QUANTITY,
+            couponName: 'load-test-coupon',
+        }),
+        { headers: JSON_HEADERS }
+    );
+    check(couponRes, { 'create coupon OK': r => r.status === 200 });
+    const couponId = couponRes.json().result.couponId;
+
+    return { userIds, couponId };
+}
 
 
 export default function (data) {
