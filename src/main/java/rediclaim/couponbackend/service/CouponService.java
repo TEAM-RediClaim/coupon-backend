@@ -156,6 +156,9 @@ public class CouponService {
                         redisTemplate.opsForSet().remove(issuedUsersKey, userId.toString());
 
                         // TODO: 사용자에게 사과 메시지 전송
+                        // -> 여기서는 그냥 exception을 던져서 유저가 쿠폰 발급 실패를 인지하도록 함
+                        // -> KafkaConsumer에서 유저가 쿠폰 발급을 받은 이력을 DB에 저장하지 못할 경우에
+                        //    사용자에게 사과 메시지 전송 or DLQ 화인해서 개발자가 직접 처리하는 방향으로 수정
 
                     } else {
                         log.info("Kafka 메시지 전송 성공: userId={}, couponId={}", userId, couponId);
