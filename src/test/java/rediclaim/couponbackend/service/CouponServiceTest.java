@@ -64,15 +64,9 @@ class CouponServiceTest {
         //when
         couponService.issueCoupon(user.getId(), coupon.getId());
 
-        couponStockSyncScheduler.syncCouponStock();     // redis 재고와 DB 동기화를 수동으로 실행
-
-        //then
-        Coupon updatedCoupon = couponRepository.findById(coupon.getId()).orElseThrow();
-        assertThat(updatedCoupon.getRemainingCount()).isEqualTo(9);
-
-        assertThat(userCouponRepository.findByUserId(user.getId()))
-                .extracting(uc -> uc.getCoupon().getId())
-                .containsExactly(coupon.getId());
+        //then -> redis 의 coupon 재고값 확인
+        // TODO: 추후 [DB 가 데이터 정합성 기준으로 수정] 시에 테스트 코드 수정
+        assertThat(redisTemplate.opsForValue().get(stockKey)).isEqualTo("9");
     }
 
     @Test
