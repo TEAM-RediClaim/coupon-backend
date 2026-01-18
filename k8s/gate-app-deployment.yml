@@ -1,0 +1,107 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gate-app
+  namespace: rediclaim
+spec:
+  replicas: 2   # gate pod 개수
+  selector:
+    matchLabels:
+      app: gate-app
+  template:
+    metadata:
+      labels:
+        app: gate-app
+    spec:
+      containers:
+        - name: gate-app
+          image: seongjunnoh/gate-app:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8000
+          env:
+            # 기본 시스템 설정
+            - name: TZ
+              value: "Asia/Seoul"
+            - name: SERVER_PORT
+              value: "8000"
+
+            # 인프라 연결 설정 (K8s 내부 주소 사용)
+            - name: SPRING_KAFKA_BOOTSTRAP_SERVERS
+              value: "kafka.rediclaim.svc.cluster.local:9092"
+            - name: SPRING_DATA_REDIS_HOST
+              value: "redis.rediclaim.svc.cluster.local"
+            - name: SPRING_DATA_REDIS_PORT
+              value: "6379"
+
+            # Tomcat (HTTP 요청 수용력)
+            - name: SERVER_TOMCAT_THREADS_MAX
+              value: "400"
+            - name: SERVER_TOMCAT_ACCEPT_COUNT
+              value: "1000"
+
+            # Redis Connection Pool
+            - name: SPRING_DATA_REDIS_LETTUCE_POOL_MAX_ACTIVE
+              value: "300"
+            - name: SPRING_DATA_REDIS_LETTUCE_POOL_MAX_IDLE
+              value: "50"
+            - name: SPRING_DATA_REDIS_LETTUCE_POOL_MAX_WAIT
+              value: "3000ms"
+
+            # Gate 비즈니스 로직 설정
+            - name: GATE_EVENT_IDS
+              value: "1001,1002,1003"  # 리스트는 콤마(,)로 구분
+            - name: GATE_DISPATCH_MODE
+              value: "kafka"           # 'http' 또는 'kafka'로 변경 가능
+            - name: GATE_DISPATCH_QUANTITY
+              value: "200"             # dispatch 트래픽 조절 필요 시 이 값만 수정
+            - name: GATE_ISSUER_BASE_URL
+              value: "http://issuer-app-svc.rediclaim.svc.cluster.local:8080"
+
+            # 모니터링 설정 (Actuator)
+            - name: MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE
+              value: "*"
+            - name: MANAGEMENT_ENDPOINT_HEALTH_SHOW_DETAILS
+              value: "always"
+
+          # 리소스 할당 - 대용량 트래픽에도 견딜 수 있도록 상향 조정
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "500m"
+            limits:
+              memory: "1Gi"
+              cpu: "2000m"
+
+          # 헬스 체크 (서버 포트 8000번에 맞춤)
+          livenessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8000
+            initialDelaySeconds: 60
+            periodSeconds: 20
+            timeoutSeconds: 5
+          readinessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8000
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: gate-app-svc
+  namespace: rediclaim
+spec:
+  type: NodePort
+  selector:
+    app: gate-app
+  ports:
+    - name: http
+      port: 8000
+      targetPort: 8000
+      nodePort: 30000
