@@ -1,1 +1,4 @@
 rootProject.name = 'coupon-backend'
+
+include 'issuer-app'
+include 'gate-app'

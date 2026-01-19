@@ -1,0 +1,62 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis
+  namespace: rediclaim
+spec:
+  selector:
+    app: redis
+  ports:
+    - name: redis
+      port: 6379
+      targetPort: 6379
+  type: ClusterIP
+
+---
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis
+  namespace: rediclaim
+spec:
+  replicas: 1   # redis 단일 pod
+  selector:
+    matchLabels:
+      app: redis
+  template:
+    metadata:
+      labels:
+        app: redis
+    spec:
+      containers:
+        - name: redis
+          image: redis:8.4.0
+          ports:
+            - containerPort: 6379
+          env:
+            - name: TZ
+              value: "Asia/Seoul"
+
+          # RDB 저장 비활성화 (성능을 위해)
+          args: ["redis-server", "--save", "", "--appendonly", "no"]
+
+          # 리소스 할당 - 대용량 트래픽에도 견딜 수 있도록 상향 조정
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "500m"
+            limits:
+              memory: "1Gi"
+              cpu: "1000m"
+
+          readinessProbe:
+            tcpSocket:
+              port: 6379
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          livenessProbe:
+            tcpSocket:
+              port: 6379
+            initialDelaySeconds: 15
+            periodSeconds: 10
