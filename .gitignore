@@ -38,4 +38,5 @@ out/
 
 # Spring Boot config (local only)
 **/src/main/resources/application.yml
+**/src/main/resources/application-*.yml
 **/src/test/resources/application-*.yml
