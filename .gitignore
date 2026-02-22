@@ -40,3 +40,6 @@ out/
 **/src/main/resources/application.yml
 **/src/main/resources/application-*.yml
 **/src/test/resources/application-*.yml
+
+# Docker 설정 파일
+/docker/
