@@ -1,0 +1,29 @@
+plugins {
+    id 'java-library'  // 'api' configuration 활성화 → 전이 의존성 노출
+}
+
+// spring-boot 플러그인 없이 java-library만 사용하므로
+// BOM을 직접 import해야 의존성 버전이 결정된다.
+dependencyManagement {
+    imports {
+        mavenBom "org.springframework.boot:spring-boot-dependencies:3.4.4"
+    }
+}
+
+dependencies {
+    // issuer-app, issuer-redis-app 이 별도 선언 없이 아래 의존성을 사용할 수 있도록 api 로 노출
+    api 'org.springframework.boot:spring-boot-starter-data-jpa'
+    api 'org.springframework.boot:spring-boot-starter-web'
+    api 'org.springframework.boot:spring-boot-starter-validation'
+
+    compileOnly 'org.projectlombok:lombok'
+    annotationProcessor 'org.projectlombok:lombok'
+
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+    testRuntimeOnly 'com.h2database:h2'
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
+}
