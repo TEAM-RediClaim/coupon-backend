@@ -17,6 +17,7 @@ public interface CouponRepository extends JpaRepository<Coupon, Long> {
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select c from Coupon c where c.id = :id")
-    @QueryHints({@QueryHint(name = "jakarta.persistence.lock.timeout", value = "3000")})      // 3초 타임아웃
+//    @QueryHints({@QueryHint(name = "jakarta.persistence.lock.timeout", value = "3000")})      // 3초 타임아웃
+    // -> MySQL InnoDB는 query hint 인식하지 못함
     Optional<Coupon> findByIdForUpdate(@Param("id") Long id);
 }
