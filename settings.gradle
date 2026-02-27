@@ -1,4 +1,6 @@
 rootProject.name = 'coupon-backend'
 
+include 'user-module'
 include 'issuer-app'
+include 'issuer-redis-app'
 include 'gate-app'
