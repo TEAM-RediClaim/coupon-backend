@@ -1,0 +1,42 @@
+plugins {
+    id 'org.springframework.boot'
+    id 'io.spring.dependency-management'
+    id 'java'
+    id 'com.google.cloud.tools.jib'
+}
+
+dependencies {
+    // user-module: User 도메인, UserService, UserController, 공통 인프라 (BaseEntity, BaseResponse, 예외 등)
+    implementation project(':user-module')
+
+    // Redis (Lua 스크립트 기반 동시성 제어)
+    implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+    // Lettuce 커넥션 풀 지원 (application.yml lettuce.pool.* 설정 활성화)
+    implementation 'org.apache.commons:commons-pool2'
+
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
+    implementation 'io.micrometer:micrometer-registry-prometheus'
+
+    runtimeOnly 'com.mysql:mysql-connector-j'
+
+    compileOnly 'org.projectlombok:lombok'
+    annotationProcessor 'org.projectlombok:lombok'
+
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+    testRuntimeOnly 'com.h2database:h2'
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
+}
+
+jib {
+    to {
+        image = 'seongjunnoh/issuer-redis-app'
+        tags = ['latest']
+    }
+    container {
+        ports = ['8080']
+    }
+}
