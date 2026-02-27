@@ -26,4 +26,19 @@ subprojects {
             extendsFrom annotationProcessor
         }
     }
+
+    // jib 플러그인이 적용된 서브모듈에만 공통 플랫폼 설정 적용
+    plugins.withId('com.google.cloud.tools.jib') {
+        jib {
+            from {
+                image = 'eclipse-temurin:17-jre'
+                platforms {
+                    platform {
+                        architecture = 'arm64'
+                        os = 'linux'
+                    }
+                }
+            }
+        }
+    }
 }
