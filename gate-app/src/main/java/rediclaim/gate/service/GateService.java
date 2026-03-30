@@ -2,29 +2,22 @@ package rediclaim.gate.service;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-import rediclaim.gate.config.GateProperties;
-import rediclaim.gate.dispatcher.DispatchUserDto;
-import rediclaim.gate.dispatcher.RequestDispatcher;
+import rediclaim.gate.dispatcher.DispatchStrategy;
 import rediclaim.gate.repository.GateEnqueueDto;
 import rediclaim.gate.repository.GateRedisRepository;
 import rediclaim.gate.controller.dto.GateEnqueueResponse;
 import rediclaim.gate.controller.dto.GateStatusResponse;
-
-import java.util.ArrayList;
-import java.util.List;
 
 @Service
 @RequiredArgsConstructor
 public class GateService {
 
     private final GateRedisRepository gateRedisRepository;
-    private final GateProperties gateProperties;
-    private final RequestDispatcher requestDispatcher;
+    private final DispatchStrategy dispatchStrategy;
 
     public GateEnqueueResponse enqueue(Long eventId, Long userId) {
         GateEnqueueDto result = gateRedisRepository.enqueueLua(eventId, userId);
 
-        // 이미 대기열에 있던 사용자인지 여부에 따라 결과 반환
         if (result.enqueued()) {
             return new GateEnqueueResponse("ENQUEUED", result.rank() + 1);
         } else {
@@ -39,42 +32,32 @@ public class GateService {
             return new GateStatusResponse("WAITING", rank + 1);
         }
 
-        // 2. 처리열 확인 (Gate 입장에서는 PROCESSING, Client 입장에서는 '입장 중')
-        if (gateRedisRepository.isProcessing(eventId, userId)) {
-            return new GateStatusResponse("PROCESSING", null);
-        }
-
-        // 3. 둘 다 없음 (이미 발급 완료되었거나, 타임아웃, 혹은 미진입)
-        // Issuer 쪽 DB까지 확인하거나, 클라이언트에게 '정보 없음' 리턴
-        return new GateStatusResponse("UNKNOWN", null);
+        // 2. dispatch-mode 별 상태 확인 (PROCESSING / ACTIVE / UNKNOWN)
+        return dispatchStrategy.statusOf(eventId, userId);
     }
 
     /**
-     * 한번에 N명 처리: queue -> processing -> dispatcher 로 전달
+     * 대기열에서 N명을 꺼내 다음 단계로 이동.
+     * - kafka 모드      : Processing Queue 이동 후 Kafka 발행
+     * - active-queue 모드 : Active Queue(TTL) 이동 후 클라이언트가 issuer-api-app 직접 호출
      */
     public int dispatchOnce(Long eventId) {
-        int rate = gateProperties.getDispatchQuantity();
-        if (rate <= 0) return 0;
+        return dispatchStrategy.dispatch(eventId);
+    }
 
-        // [User, Ticket, User, Ticket ...] 리스트 반환됨
-        List<String> rawList = gateRedisRepository.popToProcessing(eventId, rate);
-        if (rawList.isEmpty()) return 0;
+    /**
+     * issuer-worker-app 의 처리 완료 콜백을 받아 processing 에서 제거.
+     * kafka 모드에서만 호출된다.
+     */
+    public void removeFromProcessing(Long eventId, Long userId) {
+        gateRedisRepository.removeFromProcessing(eventId, userId);
+    }
 
-        List<DispatchUserDto> dispatchUsers = new ArrayList<>();
-
-        for (int i = 0; i < rawList.size(); i += 2) {
-            String userIdStr = rawList.get(i);
-            String ticketStr = rawList.get(i + 1);
-
-            // Ticket 번호 유실 없이 그대로 전달 가능
-            dispatchUsers.add(new DispatchUserDto(
-                    Long.parseLong(userIdStr),
-                    // Redis Score는 double이므로 소수점 제거 변환 필요할 수 있음
-                    (long) Double.parseDouble(ticketStr)
-            ));
-        }
-
-        requestDispatcher.dispatchBatch(eventId, dispatchUsers);
-        return dispatchUsers.size();
+    /**
+     * processing 에 오래 머무른 요청을 queue 로 되돌림.
+     * kafka 모드에서만 실질적인 동작을 수행하며, active-queue 모드에서는 no-op이다.
+     */
+    public int requeueStaleProcessing(Long eventId) {
+        return dispatchStrategy.requeueStale(eventId);
     }
 }

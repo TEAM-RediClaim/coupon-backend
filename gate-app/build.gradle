@@ -29,3 +29,13 @@ dependencies {
 tasks.named('test') {
     useJUnitPlatform()
 }
+
+jib {
+    to {
+        image = 'seongjunnoh/gate-app'
+        tags = ['latest']
+    }
+    container {
+        ports = ['8000']
+    }
+}
